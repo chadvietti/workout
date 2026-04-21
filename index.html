@@ -147,8 +147,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .week-card-hdr h3{font-size:13px;font-weight:600;}
 .week-card-hdr .wk-meta{font-size:11px;color:var(--text2);}
 .week-sessions{padding:6px 13px 10px;}
-.wsi{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
-.wsi:last-child{border-bottom:none;}
+.wsi-wrap{position:relative;overflow:hidden;border-bottom:1px solid var(--border);}
+.wsi-wrap:last-child{border-bottom:none;}
+.wsi-delete-bg{position:absolute;right:0;top:0;bottom:0;width:80px;background:#8b1a1a;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;letter-spacing:.3px;pointer-events:none;}
+.wsi{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px;background:var(--surface);position:relative;transition:transform .15s ease;touch-action:pan-y;will-change:transform;cursor:pointer;}
 .wsi-name{font-weight:500;}
 .wsi-date{font-size:11px;color:var(--text2);}
 .wsi-note{font-size:11px;color:var(--text3);font-style:italic;margin-top:1px;}
@@ -742,55 +744,162 @@ function changeDate(sid,date){
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
+function weekOf(d){const dt=new Date(d+'T12:00:00');dt.setDate(dt.getDate()-dt.getDay());return dt.toISOString().slice(0,10);}
+
+function statsForWeek(wkStart, allDates){
+  const wkDates=Object.keys(allDates).filter(d=>weekOf(d)===wkStart);
+  let train=0,rest=0,sets=0,skipped=0;
+  wkDates.forEach(d=>{
+    allDates[d].forEach(({sid,data})=>{
+      if(sid==='rest_days'){rest++;return;}
+      train++;
+      sets+=Object.values(data||{}).reduce((c,ex)=>c+(ex.sets||[]).filter(s=>s.done).length,0);
+      skipped+=Object.values(data||{}).filter(ex=>ex.skipped).length;
+    });
+  });
+  return{train,rest,sets,skipped};
+}
+
+let summaryWeekOffset=0; // 0=current, 1=last
+
 function buildSummary(){
   const allDates={};
   Object.entries(logs).forEach(([sid,entries])=>{
     if(sid==='rest_days'){entries.forEach(r=>{if(!allDates[r.date])allDates[r.date]=[];allDates[r.date].push({sid:'rest_days',notes:r.notes});});return;}
     entries.forEach(e=>{if(!allDates[e.date])allDates[e.date]=[];allDates[e.date].push({sid,data:e.data});});
   });
-  const sorted=Object.keys(allDates).sort((a,b)=>b.localeCompare(a));
-  const restCount=(logs['rest_days']||[]).length;
-  const trainCount=Object.entries(logs).filter(([k])=>k!=='rest_days').reduce((a,[,v])=>a+v.length,0);
-  const setsDone=Object.entries(logs).filter(([k])=>k!=='rest_days').reduce((a,[,entries])=>
-    a+entries.reduce((b,e)=>b+Object.values(e.data||{}).reduce((c,ex)=>c+(ex.sets||[]).filter(s=>s.done).length,0),0),0);
-  const skipped=Object.entries(logs).filter(([k])=>k!=='rest_days').reduce((a,[,entries])=>
-    a+entries.reduce((b,e)=>b+Object.values(e.data||{}).filter(ex=>ex.skipped).length,0),0);
 
-  document.getElementById('sum-sub').textContent=`${trainCount} sessions logged`;
+  // Compute current and last week starts (Sun)
+  const now=new Date();
+  function sundayOf(dt){const d=new Date(dt);d.setDate(d.getDate()-d.getDay());return d.toISOString().slice(0,10);}
+  const thisWeekStart=sundayOf(now);
+  const lastWeekDt=new Date(now); lastWeekDt.setDate(lastWeekDt.getDate()-7);
+  const lastWeekStart=sundayOf(lastWeekDt);
+
+  const displayWeek=summaryWeekOffset===0?thisWeekStart:lastWeekStart;
+  const st=statsForWeek(displayWeek,allDates);
+  const weekLabel=summaryWeekOffset===0?'Current Week':'Last Week';
+
+  document.getElementById('sum-sub').textContent=weekLabel;
   document.getElementById('stats-bar').innerHTML=`
-    <div class="stat-card"><div class="sv">${trainCount}</div><div class="sl">Sessions</div></div>
-    <div class="stat-card"><div class="sv">${restCount}</div><div class="sl">Rest days</div></div>
-    <div class="stat-card"><div class="sv">${setsDone}</div><div class="sl">Sets done</div></div>
-    <div class="stat-card"><div class="sv">${skipped}</div><div class="sl">Skipped</div></div>
+    <div class="stat-card"><div class="sv">${st.train}</div><div class="sl">Sessions</div></div>
+    <div class="stat-card"><div class="sv">${st.rest}</div><div class="sl">Rest days</div></div>
+    <div class="stat-card"><div class="sv">${st.sets}</div><div class="sl">Sets done</div></div>
+    <div class="stat-card"><div class="sv">${st.skipped}</div><div class="sl">Skipped</div></div>
   `;
 
-  if(!sorted.length){document.getElementById('weeks-container').innerHTML='<div class="empty-state">No sessions logged yet.</div>';return;}
-
-  function weekOf(d){const dt=new Date(d+'T12:00:00');dt.setDate(dt.getDate()-dt.getDay());return dt.toISOString().slice(0,10);}
-  const weeks={};
-  sorted.forEach(d=>{const w=weekOf(d);if(!weeks[w])weeks[w]=[];weeks[w].push(d);});
-
+  // Build two week cards
   let html='';
-  Object.keys(weeks).sort((a,b)=>b.localeCompare(a)).forEach(wk=>{
-    const wkDates=weeks[wk];
-    html+=`<div class="week-card"><div class="week-card-hdr"><h3>Week of ${fmtDate(wk)}</h3><span class="wk-meta">${wkDates.length} day${wkDates.length!==1?'s':''}</span></div><div class="week-sessions">`;
+  [thisWeekStart, lastWeekStart].forEach((wkStart,idx)=>{
+    const label=idx===0?'Current Week':'Last Week';
+    const wkDates=Object.keys(allDates).filter(d=>weekOf(d)===wkStart).sort((a,b)=>b.localeCompare(a));
+    const isActive=displayWeek===wkStart;
+    html+=`<div class="week-card">
+      <div class="week-card-hdr" onclick="selectSummaryWeek(${idx})" style="cursor:pointer;">
+        <h3 style="color:${isActive?'var(--accent)':'var(--text)'}">${label}</h3>
+        <span class="wk-meta">${wkDates.length} day${wkDates.length!==1?'s':''} · ${fmtDate(wkStart)}</span>
+      </div>
+      <div class="week-sessions">`;
+    if(!wkDates.length){
+      html+=`<div style="padding:10px 0;font-size:12px;color:var(--text3);font-style:italic;">No sessions logged</div>`;
+    }
     wkDates.forEach(d=>{
       allDates[d].forEach(({sid,notes,data})=>{
+        const entryKey=sid==='rest_days'?`rest__${d}`:`${sid}__${d}`;
         if(sid==='rest_days'){
-          html+=`<div class="wsi" style="cursor:default;"><div><div class="wsi-name" style="color:var(--text2);">Rest Day</div><div class="wsi-date">${fmtDate(d)}</div>${notes?`<div class="wsi-note">${notes}</div>`:''}</div><div class="ws-dot" style="background:#3a3a3a;"></div></div>`;
+          html+=`<div class="wsi-wrap" id="wrap-${entryKey}">
+            <div class="wsi-delete-bg">Delete</div>
+            <div class="wsi" style="cursor:default;" data-key="${entryKey}" data-sid="rest_days" data-date="${d}">
+              <div><div class="wsi-name" style="color:var(--text2);">Rest Day</div><div class="wsi-date">${fmtDate(d)}</div>${notes?`<div class="wsi-note">${notes}</div>`:''}</div>
+              <div class="ws-dot" style="background:#3a3a3a;"></div>
+            </div>
+          </div>`;
           return;
         }
         const sess=SESSIONS.find(s=>s.id===sid);
         if(!sess) return;
-        // collect any daily notes (skipped exercises)
         const skippedExs=data?Object.entries(data).filter(([,ex])=>ex.skipped).map(([n])=>n):[];
         const noteStr=skippedExs.length?'Skipped: '+skippedExs.join(', '):'';
-        html+=`<div class="wsi" onclick="jumpToSession('${sid}','${d}')"><div><div class="wsi-name">${sess.label}</div><div class="wsi-date">${fmtDate(d)}</div>${noteStr?`<div class="wsi-note">${noteStr}</div>`:''}</div><div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--text2);">View ›</div><div class="ws-dot" style="background:${sess.color};"></div></div></div>`;
+        html+=`<div class="wsi-wrap" id="wrap-${entryKey}">
+          <div class="wsi-delete-bg">Delete</div>
+          <div class="wsi" data-key="${entryKey}" data-sid="${sid}" data-date="${d}" onclick="jumpToSession('${sid}','${d}')">
+            <div><div class="wsi-name">${sess.label}</div><div class="wsi-date">${fmtDate(d)}</div>${noteStr?`<div class="wsi-note">${noteStr}</div>`:''}</div>
+            <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:11px;color:var(--text2);">View ›</div><div class="ws-dot" style="background:${sess.color};"></div></div>
+          </div>
+        </div>`;
       });
     });
-    html+='</div></div>';
+    html+=`</div></div>`;
   });
+
+  if(!Object.keys(allDates).length) html='<div class="empty-state">No sessions logged yet.</div>';
   document.getElementById('weeks-container').innerHTML=html;
+  initSwipeToDelete();
+}
+
+function selectSummaryWeek(idx){
+  summaryWeekOffset=idx;
+  buildSummary();
+}
+
+function deleteEntry(sid, date){
+  if(sid==='rest_days'){
+    if(logs['rest_days']) logs['rest_days']=logs['rest_days'].filter(r=>r.date!==date);
+  } else {
+    if(logs[sid]) logs[sid]=logs[sid].filter(e=>e.date!==date);
+    if(sessionData[sid]) delete sessionData[sid];
+  }
+  save('logs',logs);
+  buildSummary();
+}
+
+function initSwipeToDelete(){
+  document.querySelectorAll('.wsi').forEach(el=>{
+    let startX=0,startY=0,curX=0,swiping=false,confirmed=false;
+    const THRESHOLD=75;
+
+    el.addEventListener('touchstart',e=>{
+      startX=e.touches[0].clientX;
+      startY=e.touches[0].clientY;
+      curX=0; swiping=false; confirmed=false;
+      el.style.transition='none';
+    },{passive:true});
+
+    el.addEventListener('touchmove',e=>{
+      const dx=e.touches[0].clientX-startX;
+      const dy=e.touches[0].clientY-startY;
+      if(!swiping && Math.abs(dy)>Math.abs(dx)) return; // vertical scroll
+      swiping=true;
+      curX=Math.min(0,dx); // only allow left swipe
+      el.style.transform=`translateX(${curX}px)`;
+    },{passive:true});
+
+    el.addEventListener('touchend',()=>{
+      if(!swiping){return;}
+      if(curX<-THRESHOLD){
+        // snap to show delete
+        el.style.transition='transform .15s ease';
+        el.style.transform='translateX(-80px)';
+        confirmed=true;
+        // second tap anywhere confirms delete
+        const sid=el.dataset.sid;
+        const date=el.dataset.date;
+        const confirmDel=()=>{
+          if(confirm(`Delete this entry for ${fmtDate(date)}?`)){
+            deleteEntry(sid,date);
+          } else {
+            el.style.transition='transform .2s ease';
+            el.style.transform='translateX(0)';
+          }
+          el.removeEventListener('click',confirmDel);
+        };
+        setTimeout(()=>el.addEventListener('click',confirmDel,{once:true}),50);
+      } else {
+        el.style.transition='transform .2s ease';
+        el.style.transform='translateX(0)';
+      }
+    });
+  });
 }
 
 function jumpToSession(sid,date){
