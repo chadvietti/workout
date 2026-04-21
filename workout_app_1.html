@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>Chad's Training Log</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1e1e1e;
+    --surface3: #282828;
+    --border: #2a2a2a;
+    --border2: #383838;
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --flow:  #1d5fa8;
+    --ub1:   #1e6b2e;
+    --ub2:   #6b2478;
+    --lb:    #a04a10;
+    --mob:   #0e6b72;
+    --rest:  #3a3a3a;
+    --accent:#e8c84a;
+    --radius: 12px;
+    --tab-h: 64px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; overscroll-behavior: none; }
+
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+
+  /* ── Top header ── */
+  #topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #topbar h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+  #topbar .date { font-size: 12px; color: var(--text2); }
+  #timer-btn {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); border-radius: 20px; padding: 6px 12px;
+    font-size: 13px; font-weight: 500; cursor: pointer; display: flex;
+    align-items: center; gap: 6px; min-width: 80px; justify-content: center;
+  }
+  #timer-btn.running { border-color: var(--accent); color: var(--accent); }
+  #timer-btn .clock-icon { width: 15px; height: 15px; flex-shrink: 0; opacity: 0.5; }
+  #timer-btn.running .clock-icon { opacity: 1; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Timer modal ── */
+  #timer-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  #timer-modal.open { display: flex; }
+  .timer-card {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 20px; padding: 28px 24px; width: 300px; text-align: center;
+  }
+  .timer-card h3 { font-size: 14px; color: var(--text2); margin-bottom: 16px; font-weight: 500; }
+  #timer-display { font-size: 52px; font-weight: 200; letter-spacing: -2px; color: var(--text); margin-bottom: 20px; font-variant-numeric: tabular-nums; }
+  #timer-display.warn { color: var(--accent); }
+  .timer-presets { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+  .timer-presets button {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px; padding: 6px 10px;
+    font-size: 12px; cursor: pointer;
+  }
+  .timer-presets button:active { background: var(--surface3); }
+  .timer-controls { display: flex; gap: 10px; justify-content: center; }
+  .timer-controls button {
+    flex: 1; padding: 12px; border-radius: 10px; font-size: 14px;
+    font-weight: 500; cursor: pointer; border: none;
+  }
+  #t-startstop { background: var(--accent); color: #000; }
+  #t-reset { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  #t-close { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .timer-custom { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .timer-custom input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px; font-size: 14px; text-align: center;
+  }
+  .timer-custom button {
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer;
+  }
+
+  /* ── Tabs ── */
+  #tab-bar {
+    display: flex; background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding-bottom: var(--safe-bottom);
+    flex-shrink: 0; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #tab-bar::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 1; min-width: 60px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 8px 4px;
+    cursor: pointer; transition: opacity 0.15s;
+    border-top: 2px solid transparent;
+    gap: 3px;
+  }
+  .tab.active { border-top-color: var(--tab-color, #fff); }
+  .tab .tab-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tab-color, var(--text3)); opacity: 0.4; }
+  .tab.active .tab-dot { opacity: 1; }
+  .tab .tab-label { font-size: 9px; color: var(--text3); font-weight: 500; text-align: center; line-height: 1.2; }
+  .tab.active .tab-label { color: var(--tab-color, var(--text)); }
+
+  /* ── Content area ── */
+  #content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Views ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── Session view ── */
+  .session-header {
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .session-header h2 { font-size: 15px; font-weight: 600; }
+  .session-header .block-badge {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 3px 8px; border-radius: 6px; text-transform: uppercase;
+  }
+  .start-session-btn {
+    width: calc(100% - 32px); margin: 12px 16px;
+    background: var(--session-color, var(--surface2));
+    color: #fff; border: none; border-radius: 10px;
+    padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;
+    opacity: 0.9;
+  }
+  .start-session-btn:active { opacity: 0.75; }
+
+  /* ── Block section ── */
+  .block-section { margin: 0 0 2px; }
+  .block-heading {
+    padding: 10px 16px 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--text3);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .block-heading::before {
+    content: ''; width: 3px; height: 12px; border-radius: 2px;
+    background: var(--block-color, var(--text3));
+    flex-shrink: 0;
+  }
+  .block-heading span { color: var(--block-color, var(--text3)); }
+
+  /* ── Exercise row ── */
+  .ex-row {
+    background: var(--surface);
+    margin: 0 12px 2px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .ex-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; cursor: pointer; gap: 8px;
+  }
+  .ex-header:active { background: var(--surface2); }
+  .ex-left { flex: 1; min-width: 0; }
+  .ex-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .ex-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+  .ex-target { font-size: 11px; color: var(--ex-color, var(--text2)); font-weight: 500; }
+  .ex-ss { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+    background: var(--ex-color-dim, var(--surface3)); color: var(--ex-color, var(--text3)); }
+  .ex-chevron { color: var(--text3); font-size: 11px; transition: transform 0.2s; flex-shrink: 0; }
+  .ex-row.open .ex-chevron { transform: rotate(180deg); }
+  .ex-prev { font-size: 11px; color: var(--text3); padding: 0 12px 6px; font-style: italic; }
+
+  /* ── Log panel ── */
+  .log-panel { display: none; padding: 0 12px 10px; border-top: 1px solid var(--border); }
+  .ex-row.open .log-panel { display: block; }
+  .set-row {
+    display: grid; grid-template-columns: 28px 1fr 1fr 1fr auto;
+    gap: 6px; align-items: center; padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .set-row:last-of-type { border-bottom: none; }
+  .set-num { font-size: 11px; color: var(--text3); font-weight: 600; text-align: center; }
+  .set-input {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); border-radius: 7px; padding: 7px 6px;
+    font-size: 13px; text-align: center; width: 100%;
+    -webkit-appearance: none;
+  }
+  .set-input::placeholder { color: var(--text3); }
+  .set-input:focus { outline: none; border-color: var(--ex-color, var(--border2)); }
+  .set-labels {
+    display: grid; grid-template-columns: 28px 1fr 1fr 1fr auto;
+    gap: 6px; padding: 8px 0 4px;
+  }
+  .set-label { font-size: 9px; color: var(--text3); text-align: center; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+  .set-done-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border2);
+    background: transparent; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 13px; color: var(--text3); flex-shrink: 0;
+  }
+  .set-done-btn.done { background: var(--ex-color, var(--surface3)); border-color: var(--ex-color, var(--border2)); color: #fff; }
+  .add-set-btn {
+    width: 100%; margin-top: 8px; padding: 8px; border-radius: 8px;
+    background: var(--surface2); border: 1px dashed var(--border2);
+    color: var(--text3); font-size: 12px; cursor: pointer;
+  }
+  .notes-input {
+    width: 100%; margin-top: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; resize: none; font-family: inherit;
+  }
+  .notes-input::placeholder { color: var(--text3); }
+  .notes-input:focus { outline: none; border-color: var(--border2); }
+  .regression-note {
+    font-size: 11px; color: var(--text3); padding: 4px 0 2px;
+    font-style: italic;
+  }
+
+  /* ── History & Summary views ── */
+  .view-header { padding: 16px; border-bottom: 1px solid var(--border); }
+  .view-header h2 { font-size: 17px; font-weight: 600; }
+  .view-header p { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+  .week-card {
+    margin: 12px 12px 0; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .week-card-header {
+    padding: 12px 14px; display: flex; justify-content: space-between;
+    align-items: center; border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .week-card-header h3 { font-size: 14px; font-weight: 600; }
+  .week-card-header .wk-meta { font-size: 11px; color: var(--text2); }
+  .week-sessions { padding: 8px 14px 12px; }
+  .week-session-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; cursor: pointer;
+  }
+  .week-session-item:last-child { border-bottom: none; }
+  .week-session-item .ws-name { font-weight: 500; }
+  .week-session-item .ws-date { font-size: 11px; color: var(--text2); }
+  .ws-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .history-session {
+    margin: 12px 12px 0; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+  }
+  .hs-header {
+    padding: 11px 14px; display: flex; justify-content: space-between;
+    align-items: center; cursor: pointer;
+  }
+  .hs-header h3 { font-size: 14px; font-weight: 500; }
+  .hs-header .hs-date { font-size: 11px; color: var(--text2); }
+  .hs-body { display: none; padding: 0 14px 12px; }
+  .hs-body.open { display: block; }
+  .hs-ex { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .hs-ex:last-child { border-bottom: none; }
+  .hs-ex-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .hs-set { font-size: 11px; color: var(--text2); padding: 1px 0; }
+
+  .empty-state { padding: 40px 16px; text-align: center; color: var(--text3); font-size: 13px; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex; gap: 8px; padding: 12px 12px 4px;
+  }
+  .stat-card {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .stat-card .sv { font-size: 22px; font-weight: 300; color: var(--text); }
+  .stat-card .sl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 1px; }
+
+  .bottom-pad { height: 16px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div>
+      <div id="topbar-title" style="font-size:17px;font-weight:600;letter-spacing:-0.3px;">Training Log</div>
+      <div id="today-date" class="date"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="rest-day-btn" onclick="openRestModal()"
+        style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:20px;padding:6px 11px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+        Rest
+      </button>
+      <button id="timer-btn" onclick="openTimer()">
+        <svg class="clock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="timer-display-mini">Timer</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="content">
+    <!-- Session views injected by JS -->
+    <div id="view-summary" class="view">
+      <div class="view-header">
+        <h2>Weekly Summary</h2>
+        <p id="summary-sub"></p>
+      </div>
+      <div id="stats-bar" class="stats-bar"></div>
+      <div id="weeks-container"></div>
+      <div class="bottom-pad"></div>
+    </div>
+    <div id="view-history" class="view">
+      <div class="view-header">
+        <h2>Exercise History</h2>
+        <p>Per-exercise log across all sessions</p>
+      </div>
+      <div id="history-container"></div>
+      <div class="bottom-pad"></div>
+    </div>
+  </div>
+
+  <div id="tab-bar"></div>
+</div>
+
+<!-- Timer modal -->
+<div id="timer-modal">
+  <div class="timer-card">
+    <h3>Rest Timer</h3>
+    <div id="timer-display">1:30</div>
+    <div class="timer-presets">
+      <button onclick="setTimer(30)">30s</button>
+      <button onclick="setTimer(60)">1m</button>
+      <button onclick="setTimer(90)">1:30</button>
+      <button onclick="setTimer(120)">2m</button>
+      <button onclick="setTimer(180)">3m</button>
+    </div>
+    <div class="timer-custom">
+      <input type="number" id="custom-secs" placeholder="seconds" min="10" max="600">
+      <button onclick="setTimerCustom()">Set</button>
+    </div>
+    <div class="timer-controls" style="margin-top:16px;">
+      <button id="t-reset" onclick="resetTimer()">Reset</button>
+      <button id="t-startstop" onclick="toggleTimer()">Start</button>
+      <button id="t-close" onclick="closeTimer()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rest day modal -->
+<div id="rest-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:200;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:28px 24px;width:290px;text-align:center;">
+    <div style="font-size:28px;margin-bottom:12px;">🌿</div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:16px;">Log Rest Day</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;text-align:left;">Date</div>
+    <input type="date" id="rest-date-input" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-size:13px;margin-bottom:12px;width:100%;">
+    <textarea id="rest-notes-input" placeholder="Notes (optional — sleep, soreness, travel...)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12px;width:100%;resize:none;font-family:inherit;height:64px;margin-bottom:18px;color:var(--text);"></textarea>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeRestModal()" style="flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;background:var(--surface2);color:var(--text2);border:1px solid var(--border);">Cancel</button>
+      <button onclick="confirmRestDay()" style="flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;background:var(--surface3);color:var(--text);border:1px solid var(--border2);">Log Rest</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SESSIONS = [
+  {
+    id:'flow_ub1', label:'Flow+UB1', color:'var(--flow)',
+    blocks:[
+      { name:'Flow', color:'var(--flow)', exercises:[
+        {name:'Couch Stretch',         target:'2×1 min',   ss:''},
+        {name:'Outer Hip Circuit',     target:'1× circuit',ss:''},
+        {name:'Pigeon Strength',       target:'2×20',      ss:''},
+        {name:'Deep Squat Hold',       target:'2×2 min',   ss:'', regression:'10% effort — hold yourself up 10% out of squat'},
+        {name:'Loaded Butterfly',      target:'2×20',      ss:''},
+        {name:'Hollow Body Hold',      target:'1×20-30s',  ss:'', regression:'knees bent'},
+      ]},
+      { name:'Upper Body 1', color:'var(--ub1)', exercises:[
+        {name:'Vertical Push',         target:'3×20',      ss:'SS1a'},
+        {name:'Vertical Pull',         target:'3×10',      ss:'SS1b'},
+        {name:'Tricep Pullover',       target:'3×15',      ss:'SS2a'},
+        {name:'Face Pull',             target:'3×15',      ss:'SS2b'},
+        {name:'Powell Raise',          target:'3×20',      ss:''},
+        {name:'Neck Bridge',           target:'3×10s',     ss:'', regression:'isometric hold'},
+        {name:'Hanging Leg Raises',    target:'3×10-15',   ss:'', regression:'hanging knee raises'},
+      ]},
+    ]
+  },
+  {
+    id:'mob_a', label:'Mobility A', color:'var(--mob)',
+    blocks:[
+      { name:'Mobility', color:'var(--mob)', exercises:[
+        {name:'Cardio Warm-Up',        target:'1×10 min',  ss:'', regression:'sled / stairmaster / treadmill'},
+        {name:'Tibialis Raise',        target:'2×25',      ss:'', regression:'seated → standing'},
+        {name:'Calf Raise',            target:'2×25',      ss:'', regression:'seated → standing'},
+        {name:'Reverse Step Up',       target:'2×10-25',   ss:'', regression:'→ pistol squat'},
+        {name:'Full-Range Split Squat',target:'2×10-15',   ss:''},
+        {name:'External Rotation',     target:'2×10-15',   ss:''},
+        {name:'Pullover',              target:'2×15',      ss:''},
+        {name:'Trap 3 Raise',          target:'2×10',      ss:''},
+        {name:'Hip Flexor Kick Out',   target:'2×5',       ss:''},
+        {name:'Side Bend',             target:'2×12',      ss:''},
+        {name:'Back Extension',        target:'2×20-30',   ss:'', regression:'→ single leg'},
+      ]},
+    ]
+  },
+  {
+    id:'flow_ub2', label:'Flow+UB2', color:'var(--ub2)',
+    blocks:[
+      { name:'Flow', color:'var(--flow)', exercises:[
+        {name:'Couch Stretch',         target:'2×1 min',   ss:''},
+        {name:'Outer Hip Circuit',     target:'1× circuit',ss:''},
+        {name:'Pigeon Strength',       target:'2×20',      ss:''},
+        {name:'Deep Squat Hold',       target:'2×2 min',   ss:'', regression:'10% effort'},
+        {name:'Loaded Butterfly',      target:'2×20',      ss:''},
+        {name:'Hollow Body Hold',      target:'1×20-30s',  ss:'', regression:'knees bent'},
+      ]},
+      { name:'Upper Body 2', color:'var(--ub2)', exercises:[
+        {name:'Horizontal Push',       target:'3×20',      ss:'SS1a'},
+        {name:'Horizontal Pull',       target:'3×15',      ss:'SS1b'},
+        {name:'Cable Flies',           target:'3×15',      ss:'SS2a'},
+        {name:'Smith Curls',           target:'3×15',      ss:'SS2b'},
+        {name:'Squeeze/Stretch Curl',  target:'3×15',      ss:'SS3a'},
+        {name:'Tricep Lockout',        target:'3×30',      ss:'SS3b'},
+        {name:'Ab Wheel',              target:'3×8-12',    ss:'', regression:'from knees; use stop marker'},
+      ]},
+    ]
+  },
+  {
+    id:'mob_b', label:'Mobility B', color:'var(--mob)',
+    blocks:[
+      { name:'Mobility', color:'var(--mob)', exercises:[
+        {name:'Cardio Warm-Up',        target:'1×10 min',  ss:'', regression:'sled / stairmaster / treadmill'},
+        {name:'Tibialis Raise',        target:'2×25',      ss:'', regression:'seated → standing'},
+        {name:'Calf Raise',            target:'2×25',      ss:'', regression:'seated → standing'},
+        {name:'Reverse Step Up',       target:'2×10-25',   ss:'', regression:'→ pistol squat'},
+        {name:'Full-Range Split Squat',target:'2×10-15',   ss:''},
+        {name:'External Rotation',     target:'2×10-15',   ss:''},
+        {name:'Pullover',              target:'2×15',      ss:''},
+        {name:'Trap 3 Raise',          target:'2×10',      ss:''},
+        {name:'Hip Flexor Kick Out',   target:'2×5',       ss:''},
+        {name:'Side Bend',             target:'2×12',      ss:''},
+        {name:'Back Extension',        target:'2×20-30',   ss:'', regression:'→ single leg'},
+      ]},
+    ]
+  },
+  {
+    id:'flow_lb', label:'Flow+LB', color:'var(--lb)',
+    blocks:[
+      { name:'Flow', color:'var(--flow)', exercises:[
+        {name:'Couch Stretch',         target:'2×1 min',   ss:''},
+        {name:'Outer Hip Circuit',     target:'1× circuit',ss:''},
+        {name:'Pigeon Strength',       target:'2×20',      ss:''},
+        {name:'Loaded Butterfly',      target:'2×20',      ss:''},
+        {name:'Hollow Body Hold',      target:'1×20-30s',  ss:'', regression:'knees bent'},
+      ]},
+      { name:'Lower Body', color:'var(--lb)', exercises:[
+        {name:'Slant Squats',              target:'3×15',  ss:'SS1a'},
+        {name:'Hamstring Curls',           target:'3×15',  ss:'SS1b'},
+        {name:'Leg Extension',             target:'3×15',  ss:'', regression:'full ROM incl. terminal extension'},
+        {name:'SL Cable Hip Flexor',       target:'2×15',  ss:'SS2a'},
+        {name:'SL Reverse Hyper',          target:'2×15',  ss:'SS2b'},
+        {name:'Ankle Balance Ball',        target:'2×60s', ss:''},
+      ]},
+    ]
+  },
+];
+
+// ── Storage ──────────────────────────────────────────────────────────────────
+function storageKey(k){ return 'workout_'+k; }
+function save(k,v){ try{ localStorage.setItem(storageKey(k), JSON.stringify(v)); }catch(e){} }
+function load(k,def){ try{ const v=localStorage.getItem(storageKey(k)); return v!==null?JSON.parse(v):def; }catch(e){return def;} }
+
+// logs: { [sessionId]: [ { date, exercises: { [exName]: [{reps,weight,done,notes}] } } ] }
+let logs = load('logs', {});
+function saveLog(sessionId, dateStr, exData){
+  if(!logs[sessionId]) logs[sessionId]=[];
+  const idx = logs[sessionId].findIndex(l=>l.date===dateStr);
+  if(idx>=0) logs[sessionId][idx].exercises = exData;
+  else logs[sessionId].push({date:dateStr, exercises:exData});
+  save('logs', logs);
+}
+function getLog(sessionId, dateStr){
+  if(!logs[sessionId]) return null;
+  return logs[sessionId].find(l=>l.date===dateStr)||null;
+}
+function getLatestLog(sessionId){
+  if(!logs[sessionId]||!logs[sessionId].length) return null;
+  return [...logs[sessionId]].sort((a,b)=>b.date.localeCompare(a.date))[0];
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentTab = load('lastTab','flow_ub1');
+let activeDate = {};  // sessionId -> dateStr
+let openExercises = {};
+let sessionData = {};  // sessionId -> { exName -> [{reps,weight,done,notes}] }
+
+function today(){ return new Date().toISOString().slice(0,10); }
+
+function colorVar(c){
+  const map={'var(--flow)':'#1d5fa8','var(--ub1)':'#1e6b2e','var(--ub2)':'#6b2478','var(--lb)':'#a04a10','var(--mob)':'#0e6b72','var(--rest)':'#3a3a3a'};
+  return map[c]||'#888';
+}
+function colorDim(c){
+  const map={'var(--flow)':'rgba(29,95,168,0.18)','var(--ub1)':'rgba(30,107,46,0.18)','var(--ub2)':'rgba(107,36,120,0.18)','var(--lb)':'rgba(160,74,16,0.18)','var(--mob)':'rgba(14,107,114,0.18)'};
+  return map[c]||'rgba(80,80,80,0.18)';
+}
+
+// ── Timer ────────────────────────────────────────────────────────────────────
+let timerSecs=90, timerRemain=90, timerRunning=false, timerInterval=null;
+function updateTimerDisplay(){
+  const m=Math.floor(timerRemain/60), s=timerRemain%60;
+  const str=m+':'+(s<10?'0':'')+s;
+  document.getElementById('timer-display').textContent=str;
+  document.getElementById('timer-display-mini').textContent=timerRunning?str:'Timer';
+  document.getElementById('timer-display').className=timerRemain<=10&&timerRunning?'warn':'';
+  document.getElementById('timer-btn').className=timerRunning?'running':'';
+}
+function setTimer(s){ timerSecs=s; timerRemain=s; timerRunning=false; clearInterval(timerInterval); updateTimerDisplay(); document.getElementById('t-startstop').textContent='Start'; }
+function setTimerCustom(){ const v=parseInt(document.getElementById('custom-secs').value); if(v>0) setTimer(v); }
+function toggleTimer(){
+  if(timerRunning){ timerRunning=false; clearInterval(timerInterval); document.getElementById('t-startstop').textContent='Start'; }
+  else {
+    if(timerRemain<=0) timerRemain=timerSecs;
+    timerRunning=true;
+    timerInterval=setInterval(()=>{
+      timerRemain--;
+      if(timerRemain<=0){ timerRemain=0; timerRunning=false; clearInterval(timerInterval); document.getElementById('t-startstop').textContent='Start'; if('vibrate' in navigator) navigator.vibrate([200,100,200]); }
+      updateTimerDisplay();
+    },1000);
+    document.getElementById('t-startstop').textContent='Pause';
+  }
+  updateTimerDisplay();
+}
+function resetTimer(){ timerRemain=timerSecs; timerRunning=false; clearInterval(timerInterval); document.getElementById('t-startstop').textContent='Start'; updateTimerDisplay(); }
+function openTimer(){ document.getElementById('timer-modal').classList.add('open'); updateTimerDisplay(); }
+function closeTimer(){ document.getElementById('timer-modal').classList.remove('open'); }
+
+function openRestModal(){
+  document.getElementById('rest-date-input').value=today();
+  document.getElementById('rest-notes-input').value='';
+  document.getElementById('rest-modal').style.display='flex';
+}
+function closeRestModal(){ document.getElementById('rest-modal').style.display='none'; }
+function confirmRestDay(){
+  const date=document.getElementById('rest-date-input').value||today();
+  const notes=document.getElementById('rest-notes-input').value.trim();
+  if(!logs['rest_days']) logs['rest_days']=[];
+  const idx=logs['rest_days'].findIndex(r=>r.date===date);
+  if(idx>=0) logs['rest_days'][idx]={date,notes};
+  else logs['rest_days'].push({date,notes});
+  save('logs',logs);
+  closeRestModal();
+  if(currentTab==='summary') buildSummary();
+}
+
+// ── Build tabs ───────────────────────────────────────────────────────────────
+function buildTabs(){
+  const bar = document.getElementById('tab-bar');
+  bar.innerHTML='';
+  const allTabs=[...SESSIONS, {id:'summary',label:'Summary',color:'var(--accent)',isMeta:true},{id:'history',label:'History',color:'var(--accent)',isMeta:true}];
+  allTabs.forEach(s=>{
+    const t=document.createElement('div');
+    t.className='tab'+(currentTab===s.id?' active':'');
+    t.style.setProperty('--tab-color', colorVar(s.color||'var(--accent)'));
+    t.innerHTML=`<div class="tab-dot"></div><div class="tab-label">${s.label}</div>`;
+    t.onclick=()=>switchTab(s.id);
+    bar.appendChild(t);
+  });
+}
+
+// ── Build session view ───────────────────────────────────────────────────────
+function buildSessionView(sess){
+  const existingView = document.getElementById('view-'+sess.id);
+  if(existingView) return;
+  const view = document.createElement('div');
+  view.id='view-'+sess.id;
+  view.className='view';
+  const col = colorVar(sess.color);
+  const date = activeDate[sess.id] || today();
+  activeDate[sess.id]=date;
+  const prev = getLatestLog(sess.id);
+  let html=`<div style="padding:12px 12px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:12px;color:var(--text2);">Logging for</div>
+      <input type="date" id="date-${sess.id}" value="${date}"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 8px;font-size:12px;cursor:pointer;"
+        onchange="changeDate('${sess.id}',this.value)">
+    </div>
+  </div>`;
+
+  sess.blocks.forEach(block=>{
+    const bc=colorVar(block.color);
+    html+=`<div class="block-section">
+      <div class="block-heading" style="--block-color:${bc}"><span>${block.name}</span></div>`;
+    block.exercises.forEach(ex=>{
+      const exId=`${sess.id}__${ex.name.replace(/\s+/g,'_')}`;
+      const sets = (sessionData[sess.id]&&sessionData[sess.id][ex.name]) || defaultSets(ex.target);
+      const prevSets = prev && prev.exercises && prev.exercises[ex.name];
+      const prevStr = prevSets && prevSets.length ? prevSets.filter(s=>s.reps||s.weight).map(s=>`${s.reps||'—'}${s.weight?' @ '+s.weight+'lb':''}`).join('  ·  ') : null;
+      const dimColor = colorDim(block.color);
+      html+=`<div class="ex-row" id="exrow-${exId}" style="--ex-color:${bc};--ex-color-dim:${dimColor};">
+        <div class="ex-header" onclick="toggleEx('${exId}')">
+          <div class="ex-left">
+            <div class="ex-name">${ex.name}</div>
+            <div class="ex-meta">
+              <span class="ex-target">${ex.target}</span>
+              ${ex.ss?`<span class="ex-ss">${ex.ss}</span>`:''}
+            </div>
+          </div>
+          <span class="ex-chevron">▼</span>
+        </div>
+        ${prevStr?`<div class="ex-prev">Last: ${prevStr}</div>`:''}
+        <div class="log-panel">
+          ${ex.regression?`<div class="regression-note">Regression: ${ex.regression}</div>`:''}
+          <div class="set-labels">
+            <div class="set-label">#</div>
+            <div class="set-label">Reps</div>
+            <div class="set-label">Weight</div>
+            <div class="set-label">Notes</div>
+            <div class="set-label"></div>
+          </div>
+          <div id="sets-${exId}">
+            ${sets.map((s,i)=>setRowHTML(exId,sess.id,ex.name,i,s)).join('')}
+          </div>
+          <button class="add-set-btn" onclick="addSet('${exId}','${sess.id}','${ex.name}')">+ Add set</button>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  });
+  html+='<div class="bottom-pad"></div>';
+  view.innerHTML=html;
+  document.getElementById('content').appendChild(view);
+}
+
+function defaultSets(target){
+  const m=target.match(/^(\d+)[×x]/);
+  const n=m?parseInt(m[1]):3;
+  return Array.from({length:n},()=>({reps:'',weight:'',notes:'',done:false}));
+}
+
+function setRowHTML(exId, sessId, exName, i, s){
+  const done = s.done?'done':'';
+  return `<div class="set-row" id="setrow-${exId}-${i}">
+    <div class="set-num">${i+1}</div>
+    <input class="set-input" type="number" inputmode="numeric" placeholder="—"
+      value="${s.reps||''}" onchange="updateSet('${sessId}','${exName}',${i},'reps',this.value)">
+    <input class="set-input" type="number" inputmode="decimal" placeholder="—"
+      value="${s.weight||''}" onchange="updateSet('${sessId}','${exName}',${i},'weight',this.value)">
+    <input class="set-input" type="text" inputmode="text" placeholder="note"
+      value="${s.notes||''}" style="font-size:11px;" onchange="updateSet('${sessId}','${exName}',${i},'notes',this.value)">
+    <button class="set-done-btn ${done}" onclick="toggleDone('${sessId}','${exName}',${i},'${exId}')">✓</button>
+  </div>`;
+}
+
+function toggleEx(exId){
+  const row=document.getElementById('exrow-'+exId);
+  row.classList.toggle('open');
+}
+function changeDate(sessId, dateStr){
+  activeDate[sessId]=dateStr;
+  const log=getLog(sessId,dateStr);
+  if(log){ sessionData[sessId]=JSON.parse(JSON.stringify(log.exercises)); }
+  else { sessionData[sessId]={}; }
+  const view=document.getElementById('view-'+sessId);
+  if(view){ view.remove(); }
+  buildSessionView(SESSIONS.find(s=>s.id===sessId));
+  document.getElementById('view-'+sessId).classList.add('active');
+}
+
+function ensureSessionData(sessId, exName, target){
+  if(!sessionData[sessId]) sessionData[sessId]={};
+  if(!sessionData[sessId][exName]) sessionData[sessId][exName]=defaultSets(target);
+}
+function updateSet(sessId, exName, i, field, val){
+  const sess=SESSIONS.find(s=>s.id===sessId);
+  const ex=sess.blocks.flatMap(b=>b.exercises).find(e=>e.name===exName);
+  ensureSessionData(sessId, exName, ex?ex.target:'3×3');
+  sessionData[sessId][exName][i][field]=val;
+  const date=activeDate[sessId]||today();
+  saveLog(sessId, date, sessionData[sessId]);
+}
+function toggleDone(sessId, exName, i, exId){
+  const sess=SESSIONS.find(s=>s.id===sessId);
+  const ex=sess.blocks.flatMap(b=>b.exercises).find(e=>e.name===exName);
+  ensureSessionData(sessId, exName, ex?ex.target:'3×3');
+  sessionData[sessId][exName][i].done = !sessionData[sessId][exName][i].done;
+  const date=activeDate[sessId]||today();
+  saveLog(sessId, date, sessionData[sessId]);
+  const btn=document.querySelector(`#setrow-${exId}-${i} .set-done-btn`);
+  if(btn) btn.classList.toggle('done', sessionData[sessId][exName][i].done);
+}
+function addSet(exId, sessId, exName){
+  const sess=SESSIONS.find(s=>s.id===sessId);
+  const ex=sess.blocks.flatMap(b=>b.exercises).find(e=>e.name===exName);
+  ensureSessionData(sessId, exName, ex?ex.target:'3×3');
+  const sets=sessionData[sessId][exName];
+  sets.push({reps:'',weight:'',notes:'',done:false});
+  const i=sets.length-1;
+  const date=activeDate[sessId]||today();
+  saveLog(sessId, date, sessionData[sessId]);
+  const container=document.getElementById('sets-'+exId);
+  if(container){
+    const div=document.createElement('div');
+    div.innerHTML=setRowHTML(exId, sessId, exName, i, sets[i]);
+    container.appendChild(div.firstElementChild);
+  }
+}
+
+// ── Summary view ─────────────────────────────────────────────────────────────
+function buildSummary(){
+  const allDates={};
+  Object.entries(logs).forEach(([sid,entries])=>{
+    if(sid==='rest_days'){ entries.forEach(r=>{ if(!allDates[r.date]) allDates[r.date]=[]; allDates[r.date].push({sid:'rest_days',notes:r.notes}); }); return; }
+    entries.forEach(entry=>{
+      if(!allDates[entry.date]) allDates[entry.date]=[];
+      allDates[entry.date].push({sid, exercises:entry.exercises});
+    });
+  });
+  const sortedDates=Object.keys(allDates).sort((a,b)=>b.localeCompare(a));
+  const restCount=(logs['rest_days']||[]).length;
+  const totalSessions=Object.entries(logs).filter(([k])=>k!=='rest_days').reduce((a,[,v])=>a+v.length,0);
+  const totalSets=Object.entries(logs).filter(([k])=>k!=='rest_days').reduce((a,[,entries])=>a+entries.reduce((b,e)=>b+Object.values(e.exercises||{}).reduce((c,sets)=>c+sets.filter(s=>s.done).length,0),0),0);
+
+  document.getElementById('summary-sub').textContent=`${totalSessions} sessions logged`;
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-card"><div class="sv">${totalSessions}</div><div class="sl">Sessions</div></div>
+    <div class="stat-card"><div class="sv">${restCount}</div><div class="sl">Rest Days</div></div>
+    <div class="stat-card"><div class="sv">${totalSets}</div><div class="sl">Sets Done</div></div>
+  `;
+
+  if(!sortedDates.length){
+    document.getElementById('weeks-container').innerHTML='<div class="empty-state">No sessions logged yet.<br>Start training to see your summary here.</div>';
+    return;
+  }
+
+  // Group by week
+  function weekOf(d){ const dt=new Date(d+'T12:00:00'); dt.setDate(dt.getDate()-dt.getDay()); return dt.toISOString().slice(0,10); }
+  const weeks={};
+  sortedDates.forEach(d=>{ const w=weekOf(d); if(!weeks[w]) weeks[w]=[]; weeks[w].push(d); });
+
+  let html='';
+  Object.keys(weeks).sort((a,b)=>b.localeCompare(a)).forEach(wk=>{
+    const wkDates=weeks[wk];
+    const wkEnd=new Date(wk+'T12:00:00'); wkEnd.setDate(wkEnd.getDate()+6);
+    const fmtDate=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    html+=`<div class="week-card">
+      <div class="week-card-header">
+        <h3>Week of ${fmtDate(wk)}</h3>
+        <span class="wk-meta">${wkDates.length} session${wkDates.length!==1?'s':''}</span>
+      </div>
+      <div class="week-sessions">`;
+    wkDates.forEach(d=>{
+      allDates[d].forEach(({sid,notes})=>{
+        if(sid==='rest_days'){
+          html+=`<div class="week-session-item" style="cursor:default;">
+            <div><div class="ws-name" style="color:var(--text2);">Rest Day</div><div class="ws-date">${fmtDate(d)}${notes?' — '+notes:''}</div></div>
+            <div class="ws-dot" style="background:var(--rest);"></div>
+          </div>`;
+          return;
+        }
+        const sess=SESSIONS.find(s=>s.id===sid);
+        if(!sess) return;
+        const c=colorVar(sess.color);
+        html+=`<div class="week-session-item" onclick="jumpToSession('${sid}','${d}')">
+          <div><div class="ws-name">${sess.label}</div><div class="ws-date">${fmtDate(d)}</div></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-size:11px;color:var(--text2);">View ›</div>
+            <div class="ws-dot" style="background:${c};"></div>
+          </div>
+        </div>`;
+      });
+    });
+    html+='</div></div>';
+  });
+  document.getElementById('weeks-container').innerHTML=html;
+}
+
+function jumpToSession(sid, date){
+  activeDate[sid]=date;
+  const view=document.getElementById('view-'+sid);
+  if(view) view.remove();
+  buildSessionView(SESSIONS.find(s=>s.id===sid));
+  const dateInput=document.getElementById('date-'+sid);
+  if(dateInput) dateInput.value=date;
+  const log=getLog(sid,date);
+  if(log) sessionData[sid]=JSON.parse(JSON.stringify(log.exercises));
+  switchTab(sid);
+}
+
+// ── History view ─────────────────────────────────────────────────────────────
+function buildHistory(){
+  // gather all exercises across all sessions
+  const exMap={}; // exName -> [{date, sessLabel, sets}]
+  SESSIONS.forEach(sess=>{
+    if(!sess) return;
+    sess.blocks.forEach(block=>{
+      block.exercises.forEach(ex=>{
+        if(!exMap[ex.name]) exMap[ex.name]=[];
+        (logs[sess.id]||[]).forEach(entry=>{
+          const sets=entry.exercises&&entry.exercises[ex.name];
+          if(sets&&sets.some(s=>s.reps||s.weight)){
+            exMap[ex.name].push({date:entry.date, sessLabel:sess.label, sets});
+          }
+        });
+      });
+    });
+  });
+
+  const names=Object.keys(exMap).filter(n=>exMap[n].length>0).sort();
+  if(!names.length){
+    document.getElementById('history-container').innerHTML='<div class="empty-state">No exercise data yet.<br>Log your first session to see history here.</div>';
+    return;
+  }
+
+  let html='';
+  names.forEach(name=>{
+    const entries=[...exMap[name]].sort((a,b)=>b.date.localeCompare(a.date));
+    const latest=entries[0];
+    const fmtDate=d=>new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    html+=`<div class="history-session">
+      <div class="hs-header" onclick="this.nextSibling.classList.toggle('open')">
+        <h3>${name} <span style="font-weight:400;color:var(--text3);font-size:11px;">(${entries.length}×)</span></h3>
+        <span class="hs-date">${fmtDate(latest.date)}</span>
+      </div>
+      <div class="hs-body">`;
+    entries.slice(0,8).forEach(entry=>{
+      html+=`<div class="hs-ex">
+        <div class="hs-ex-name" style="color:var(--text2);font-size:11px;">${fmtDate(entry.date)} — ${entry.sessLabel}</div>`;
+      entry.sets.forEach((s,i)=>{
+        if(s.reps||s.weight){
+          html+=`<div class="hs-set">Set ${i+1}: ${s.reps?s.reps+' reps':''}${s.weight?' @ '+s.weight+' lb':''}${s.notes?' — '+s.notes:''}</div>`;
+        }
+      });
+      html+='</div>';
+    });
+    html+='</div></div>';
+  });
+  html+='<div class="bottom-pad"></div>';
+  document.getElementById('history-container').innerHTML=html;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tabId){
+  currentTab=tabId;
+  save('lastTab',tabId);
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+
+  if(tabId==='summary'){ buildSummary(); document.getElementById('view-summary').classList.add('active'); }
+  else if(tabId==='history'){ buildHistory(); document.getElementById('view-history').classList.add('active'); }
+  else {
+    const sess=SESSIONS.find(s=>s.id===tabId);
+    if(sess){
+      buildSessionView(sess);
+      const date=activeDate[tabId]||today();
+      const log=getLog(tabId,date);
+      if(log&&!sessionData[tabId]) sessionData[tabId]=JSON.parse(JSON.stringify(log.exercises));
+      document.getElementById('view-'+tabId).classList.add('active');
+    }
+  }
+  buildTabs();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('today-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+buildTabs();
+switchTab(currentTab);
+updateTimerDisplay();
+</script>
+</body>
+</html>
