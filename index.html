@@ -193,7 +193,23 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   </div>
   <div id="content">
     <div id="view-summary" class="view">
-      <div class="view-header"><h2>Weekly Summary</h2><p id="sum-sub"></p></div>
+      <div class="view-header">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <h2>Weekly Summary</h2>
+          <div style="display:flex;gap:7px;">
+            <button onclick="exportData()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+            <button onclick="document.getElementById('import-input').click()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Import
+            </button>
+            <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importData(this)">
+          </div>
+        </div>
+        <p id="sum-sub"></p>
+      </div>
       <div id="stats-bar" class="stats-bar"></div>
       <div id="weeks-container"></div>
       <div class="bottom-pad"></div>
@@ -849,6 +865,66 @@ function switchTab(id){
   }
   buildTabs();
   document.getElementById('content').scrollTop=0;
+}
+
+// ── Export / Import ──────────────────────────────────────────────────────────────
+function exportData(){
+  const payload={
+    version:1,
+    exported:new Date().toISOString(),
+    logs,
+    regPrefs
+  };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const dateStr=new Date().toISOString().slice(0,10);
+  a.href=url;
+  a.download=`training-log-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const payload=JSON.parse(e.target.result);
+      if(!payload.logs) throw new Error('Invalid file');
+      const sessionCount=Object.entries(payload.logs).filter(([k])=>k!=='rest_days').reduce((a,[,v])=>a+v.length,0);
+      const restCount=(payload.logs.rest_days||[]).length;
+      const msg=`Import ${sessionCount} sessions and ${restCount} rest days?
+
+This will MERGE with your existing data — existing entries for the same date will be overwritten.`;
+      if(!confirm(msg)){input.value='';return;}
+      // Merge logs
+      Object.entries(payload.logs).forEach(([sid,entries])=>{
+        if(!logs[sid]) logs[sid]=[];
+        entries.forEach(incoming=>{
+          const i=logs[sid].findIndex(e=>e.date===incoming.date);
+          if(i>=0) logs[sid][i]=incoming;
+          else logs[sid].push(incoming);
+        });
+      });
+      // Merge regPrefs (imported prefs fill gaps, don't overwrite existing)
+      if(payload.regPrefs){
+        Object.entries(payload.regPrefs).forEach(([k,v])=>{
+          if(!regPrefs[k]) regPrefs[k]=v;
+        });
+      }
+      save('logs',logs);
+      save('regPrefs',regPrefs);
+      input.value='';
+      alert('Import complete!');
+      buildSummary();
+    }catch(err){
+      alert('Could not read file. Make sure it\'s a valid Training Log export.');
+      input.value='';
+    }
+  };
+  reader.readAsText(file);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
