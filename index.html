@@ -795,7 +795,7 @@ function _syncVarSelect() {
   const regs = allRegsFor(exName);
   const curReg = (sessionStates[sid] && sessionStates[sid].data[exName] && sessionStates[sid].data[exName].regression) || '';
   const opts = regs.map(r => `<option value="${escAttr(r)}"${r===curReg?' selected':''}>${escHtml(r)}</option>`).join('');
-  sel.innerHTML = `<option value="">Standard</option>${opts}<option value="__edit__">Edit variations…</option>`;
+  sel.innerHTML = `<option value="">—</option>${opts}<option value="__edit__">Edit variations…</option>`;
   sel.value = curReg;
   sel.dataset.prev = curReg;
 }
@@ -1356,7 +1356,7 @@ function buildExHTML(sid, ex, bc, sbName) {
     varRow = `<div class="var-row">
       <span class="var-label">Variation:</span>
       <select class="var-sel" id="${varSelId}" data-prev="${escAttr(curReg)}" onchange="${varOnChange}">
-        <option value="">Standard</option>
+        <option value="">—</option>
         ${opts}
         <option value="__edit__">Edit variations…</option>
       </select>
@@ -1365,7 +1365,7 @@ function buildExHTML(sid, ex, bc, sbName) {
     varRow = `<div class="var-row">
       <span class="var-label">Variation:</span>
       <select class="var-sel" id="${varSelId}" data-prev="" onchange="${varOnChange}">
-        <option value="">Standard</option>
+        <option value="">—</option>
         <option value="__edit__">Edit variations…</option>
       </select>
     </div>`;
