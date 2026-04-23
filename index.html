@@ -192,6 +192,12 @@ textarea.rest-input{height:70px;resize:none;}
 /* SECTION HDR */
 .sect-hdr{font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:12px 14px 4px;}
 
+/* VARIATION ITEMS */
+.var-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.var-item:last-child{border-bottom:none;}
+.var-item-name{flex:1;font-size:13px;}
+.var-item-tag{font-size:10px;color:var(--text3);}
+
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
@@ -204,6 +210,7 @@ textarea.rest-input{height:70px;resize:none;}
     <span id="topbar-title">Workout</span>
     <button class="tb-btn" onclick="openUnitCalc()">Calc</button>
     <button class="tb-btn" id="timer-btn" onclick="openTimer()">Timer</button>
+    <button class="tb-btn" onclick="openModal('modal-data')" title="Export / Import">⊕</button>
     <button class="tb-btn" id="edit-btn" onclick="toggleEditMode()">Edit</button>
   </div>
   <div id="scroll"></div>
@@ -285,6 +292,33 @@ textarea.rest-input{height:70px;resize:none;}
     <div class="modal-footer">
       <button class="modal-btn" onclick="closeModal('modal-addex')">Cancel</button>
       <button class="modal-btn primary" onclick="confirmAddExercise()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- VARIATIONS MODAL -->
+<div class="modal-bg" id="modal-variations">
+  <div class="modal-card" style="width:300px;">
+    <div class="modal-title">Edit Variations</div>
+    <div id="var-list" style="max-height:240px;overflow-y:auto;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="add-ex-input" id="var-new-inp" placeholder="New variation name" style="margin:0;flex:1;">
+      <button class="modal-btn" style="flex:0;white-space:nowrap;padding:9px 12px;" onclick="addVarFromModal()">Add</button>
+    </div>
+    <div class="modal-footer" style="margin-top:10px;">
+      <button class="modal-btn primary" onclick="closeModal('modal-variations')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- DATA MODAL -->
+<div class="modal-bg" id="modal-data">
+  <div class="modal-card" style="width:260px;">
+    <div class="modal-title">Data &amp; Backup</div>
+    <button class="modal-btn" style="width:100%;margin-bottom:8px;" onclick="exportData();closeModal('modal-data')">⬇ Export backup (.json)</button>
+    <button class="modal-btn" style="width:100%;margin-bottom:8px;" onclick="triggerImport()">⬆ Import backup (.json)</button>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-data')">Cancel</button>
     </div>
   </div>
 </div>
@@ -685,6 +719,85 @@ function addVariation(exName, sel, sid) {
   sel.insertBefore(opt, sel.lastElementChild);
   sel.value = trimmed;
   setRegression(sid, exName, trimmed, sel);
+}
+
+// ─── VARIATION MANAGER ───────────────────────────────────────────────────────
+
+let _varCtx = null; // {exName, sid, selId}
+
+function openVariationsModal(exName, sid, selId) {
+  _varCtx = {exName, sid, selId};
+  document.getElementById('var-new-inp').value = '';
+  renderVarList();
+  openModal('modal-variations');
+}
+
+function renderVarList() {
+  if (!_varCtx) return;
+  const {exName} = _varCtx;
+  const builtIn = REGRESSIONS[exName] || [];
+  const custom = customReg[exName] || [];
+  const all = allRegsFor(exName);
+  const list = document.getElementById('var-list');
+  if (!all.length) {
+    list.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">No variations yet. Add one below.</div>';
+    return;
+  }
+  list.innerHTML = all.map(r => {
+    const isCustom = custom.includes(r);
+    return `<div class="var-item">
+      <span class="var-item-name">${escHtml(r)}</span>
+      ${isCustom
+        ? `<button class="ep-btn danger" onclick="deleteVariation('${escAttr(exName)}','${escAttr(r)}')">Remove</button>`
+        : `<span class="var-item-tag">built-in</span>`}
+    </div>`;
+  }).join('');
+}
+
+function deleteVariation(exName, varName) {
+  if (!customReg[exName]) return;
+  customReg[exName] = customReg[exName].filter(v => v !== varName);
+  saveCustomReg(customReg);
+  // Clear from any active session states
+  sessionsConfig.forEach(sess => {
+    const sState = sessionStates[sess.id];
+    if (sState && sState.data[exName] && sState.data[exName].regression === varName) {
+      sState.data[exName].regression = '';
+      persistSession(sess.id);
+    }
+  });
+  if (regPrefs[exName] === varName) { delete regPrefs[exName]; saveRegPrefs(regPrefs); }
+  renderVarList();
+  _syncVarSelect();
+}
+
+function addVarFromModal() {
+  if (!_varCtx) return;
+  const inp = document.getElementById('var-new-inp');
+  const name = inp.value.trim();
+  if (!name) return;
+  const {exName} = _varCtx;
+  if (!customReg[exName]) customReg[exName] = [];
+  if (!customReg[exName].includes(name)) {
+    customReg[exName].push(name);
+    saveCustomReg(customReg);
+  }
+  inp.value = '';
+  renderVarList();
+  _syncVarSelect();
+}
+
+function _syncVarSelect() {
+  if (!_varCtx) return;
+  const {exName, sid, selId} = _varCtx;
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const regs = allRegsFor(exName);
+  const curReg = (sessionStates[sid] && sessionStates[sid].data[exName] && sessionStates[sid].data[exName].regression) || '';
+  const opts = regs.map(r => `<option value="${escAttr(r)}"${r===curReg?' selected':''}>${escHtml(r)}</option>`).join('');
+  sel.innerHTML = `<option value="">Standard</option>${opts}<option value="__edit__">Edit variations…</option>`;
+  sel.value = curReg;
+  sel.dataset.prev = curReg;
 }
 
 // ─── LAST SESSION DATA ────────────────────────────────────────────────────────
@@ -1236,22 +1349,24 @@ function buildExHTML(sid, ex, bc, sbName) {
   const curReg = curData.regression || '';
 
   let varRow = '';
+  const varSelId = exId + '_varsel';
+  const varOnChange = `if(this.value==='__edit__'){openVariationsModal('${escAttr(ex.name)}','${sid}','${varSelId}');this.value=this.dataset.prev||''}else{this.dataset.prev=this.value;setRegression('${sid}','${escAttr(ex.name)}',this.value,this)}`;
   if (regs.length > 0) {
     const opts = regs.map(r => `<option value="${escAttr(r)}"${r===curReg?' selected':''}>${escHtml(r)}</option>`).join('');
     varRow = `<div class="var-row">
       <span class="var-label">Variation:</span>
-      <select class="var-sel" onchange="if(this.value==='__add__')addVariation('${escAttr(ex.name)}',this,'${sid}');else setRegression('${sid}','${escAttr(ex.name)}',this.value,this)">
+      <select class="var-sel" id="${varSelId}" data-prev="${escAttr(curReg)}" onchange="${varOnChange}">
         <option value="">Standard</option>
         ${opts}
-        <option value="__add__">+ Add variation...</option>
+        <option value="__edit__">Edit variations…</option>
       </select>
     </div>`;
   } else {
     varRow = `<div class="var-row">
       <span class="var-label">Variation:</span>
-      <select class="var-sel" onchange="if(this.value==='__add__')addVariation('${escAttr(ex.name)}',this,'${sid}');else setRegression('${sid}','${escAttr(ex.name)}',this.value,this)">
+      <select class="var-sel" id="${varSelId}" data-prev="" onchange="${varOnChange}">
         <option value="">Standard</option>
-        <option value="__add__">+ Add variation...</option>
+        <option value="__edit__">Edit variations…</option>
       </select>
     </div>`;
   }
@@ -1954,16 +2069,16 @@ document.getElementById('topbar-title').addEventListener('click', () => {
 });
 
 function showDataMenu() {
-  const choice = confirm('Data options:\nOK = Export\nCancel = Import');
-  if (choice) {
-    exportData();
-  } else {
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = '.json';
-    inp.onchange = () => importData(inp);
-    inp.click();
-  }
+  openModal('modal-data');
+}
+
+function triggerImport() {
+  closeModal('modal-data');
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json';
+  inp.onchange = () => importData(inp);
+  inp.click();
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
