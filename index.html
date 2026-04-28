@@ -227,6 +227,14 @@ textarea.rest-input{height:70px;resize:none;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.bar-preset{flex:1;padding:7px 4px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;text-align:center;line-height:1.3;}
+.bar-preset.sel{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{font-size:13px;color:var(--text);}
+.unit-tog{display:flex;gap:4px;}
+.unit-tog button{padding:5px 16px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;}
+.unit-tog button.sel{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700;}
 </style>
 </head>
 <body>
@@ -235,7 +243,7 @@ textarea.rest-input{height:70px;resize:none;}
     <span id="topbar-title">Weekly Workout Tracker</span>
     <button class="tb-btn" onclick="openUnitCalc()">Calc</button>
     <button class="tb-btn" id="timer-btn" onclick="openTimer()">Timer</button>
-    <button class="tb-btn" id="edit-btn" onclick="toggleEditMode()">Edit</button>
+    <button class="tb-btn" id="settings-btn" onclick="openSettings()">⚙</button>
   </div>
   <div id="scroll"></div>
   <div id="tabs"></div>
@@ -266,7 +274,7 @@ textarea.rest-input{height:70px;resize:none;}
 
 <!-- CALC MODAL -->
 <div class="modal-bg" id="modal-calc">
-  <div class="modal-card" style="width:280px;">
+  <div class="modal-card" style="width:300px;">
     <div class="modal-title">Unit Calculator</div>
     <div class="calc-row">
       <input class="calc-inp" type="number" id="calc-lb" placeholder="0" oninput="calcFromLb()">
@@ -276,8 +284,52 @@ textarea.rest-input{height:70px;resize:none;}
       <input class="calc-inp" type="number" id="calc-kg" placeholder="0" oninput="calcFromKg()">
       <span class="calc-unit">kg</span>
     </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:12px 0 10px;">
+    <div class="modal-title" style="font-size:13px;margin-bottom:10px;">Plate Calculator</div>
+    <div class="calc-row">
+      <input class="calc-inp" type="number" id="plate-goal" placeholder="Goal weight" oninput="calcPlates()">
+      <span class="calc-unit" id="plate-goal-unit">lb</span>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">Bar weight</div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;" id="bar-preset-row"></div>
+    <div id="bar-custom-row" style="display:none;">
+      <div class="calc-row" style="margin-bottom:8px;">
+        <input class="calc-inp" type="number" id="plate-bar-custom" placeholder="Custom" oninput="calcPlates()">
+        <span class="calc-unit" id="bar-custom-unit">lb</span>
+      </div>
+    </div>
+    <div id="plate-result" style="font-size:12px;min-height:18px;padding:2px 0 6px;"></div>
     <div class="modal-footer">
       <button class="modal-btn primary" onclick="closeModal('modal-calc')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-bg" id="modal-settings">
+  <div class="modal-card" style="width:300px;">
+    <div class="modal-title">Settings</div>
+    <div class="settings-row">
+      <span class="settings-label">Weight Unit</span>
+      <div class="unit-tog">
+        <button data-unit="lb" onclick="setUnit('lb')">lb</button>
+        <button data-unit="kg" onclick="setUnit('kg')">kg</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">Edit Mode</span>
+      <button class="tb-btn" id="settings-edit-btn" onclick="toggleEditMode()">Edit</button>
+    </div>
+    <div class="settings-row">
+      <span class="settings-label">Program</span>
+      <button class="ep-btn" onclick="openProgramPicker();closeModal('modal-settings')">Change</button>
+    </div>
+    <div class="settings-row" style="gap:8px;justify-content:flex-end;">
+      <button class="modal-btn" style="flex:1;padding:8px;" onclick="exportData()">⬇ Export</button>
+      <button class="modal-btn" style="flex:1;padding:8px;" onclick="triggerImport()">⬆ Import</button>
+    </div>
+    <div class="modal-footer" style="padding-top:4px;">
+      <button class="modal-btn primary" onclick="closeModal('modal-settings')">Done</button>
     </div>
   </div>
 </div>
@@ -729,6 +781,27 @@ function loadCustomProgs() {
 }
 function saveCustomProgs(d) { localStorage.setItem('wt3_customProgs', JSON.stringify(d)); }
 
+function loadBWLog() {
+  try { return JSON.parse(localStorage.getItem('wt3_bwlog')) || []; } catch(e){ return []; }
+}
+function saveBWLog(d) { localStorage.setItem('wt3_bwlog', JSON.stringify(d)); }
+
+function addBWEntry() {
+  const date = document.getElementById('bw-date').value || todayStr();
+  const weight = parseFloat(document.getElementById('bw-weight').value);
+  if (isNaN(weight) || weight <= 0) return;
+  const log = loadBWLog().filter(e => e.date !== date);
+  log.push({date, weight});
+  log.sort((a,b) => a.date.localeCompare(b.date));
+  saveBWLog(log);
+  buildSummary();
+}
+
+function deleteBWEntry(date) {
+  saveBWLog(loadBWLog().filter(e => e.date !== date));
+  buildSummary();
+}
+
 function loadCustomReg() {
   try { return JSON.parse(localStorage.getItem('wt3_customReg')) || {}; } catch(e){ return {}; }
 }
@@ -751,6 +824,12 @@ let currentProgram = loadCurrentProgram();
 
 let currentTab = sessionsConfig[0].id;
 let editMode = false;
+let unitPref = localStorage.getItem('wt3_unit') || 'lb';
+let _selectedBarPreset = 0;
+const BAR_PRESETS = {
+  lb: [{val:45,label:'Olympic'},{val:35,label:"Women's"},{val:15,label:'EZ Curl'}],
+  kg: [{val:20,label:'Olympic'},{val:15,label:"Women's"},{val:7,label:'EZ Curl'}],
+};
 let _libCtx = null; // {sid, slotIdx}
 let _addExCtx = null; // {sid, sbName}
 
@@ -869,6 +948,48 @@ function loadSessionFromLog(sid, date) {
   } else {
     sessionStates[sid].data = {};
   }
+}
+
+function saveSessionNotes(sid, date, notes) {
+  if (!logs[sid]) logs[sid] = [];
+  let entry = logs[sid].find(e => e.date === date);
+  if (!entry) {
+    if (!notes.trim()) return;
+    entry = {date, data: {}};
+    logs[sid].push(entry);
+  }
+  entry.notes = notes;
+  saveLogs(logs);
+}
+
+function copyLastWeights(sid) {
+  const date = (sessionStates[sid] || {}).date || todayStr();
+  const prior = (logs[sid] || []).filter(e => e.date < date && e.data);
+  if (!prior.length) { alert('No previous session found.'); return; }
+  const last = prior[prior.length - 1];
+  const sess = getSessConfig(sid);
+  if (!sess) return;
+  let copied = false;
+  sess.subBlocks.forEach(sbName => {
+    const sb = subBlockLib[sbName];
+    if (!sb) return;
+    sb.exercises.forEach(ex => {
+      const lastSets = ((last.data[ex.name] || {}).sets || []);
+      if (!lastSets.length) return;
+      if (!sessionStates[sid].data[ex.name]) sessionStates[sid].data[ex.name] = {sets: []};
+      const curSets = sessionStates[sid].data[ex.name].sets;
+      lastSets.forEach((ls, i) => {
+        if (!ls.weight) return;
+        if (!curSets[i]) curSets[i] = {};
+        if (curSets[i].weight) return; // don't overwrite already-entered weight
+        curSets[i].weight = ls.weight;
+        const inp = document.getElementById(makeExId(sid, ex.name) + '_w' + i);
+        if (inp) inp.value = ls.weight;
+        copied = true;
+      });
+    });
+  });
+  if (!copied) alert('No weights to copy from last session.');
 }
 
 function persistSession(sid) {
@@ -1657,6 +1778,7 @@ function buildSessionView(sess) {
   // Date row
   html += `<div class="date-row">
     <input type="date" class="date-input" value="${date}" onchange="changeDate('${sid}', this.value)">
+    <button class="rest-btn" onclick="copyLastWeights('${sid}')">↓ Last</button>
     <button class="rest-btn" onclick="openRestModal()">Rest Day</button>
   </div>`;
 
@@ -1697,6 +1819,14 @@ function buildSessionView(sess) {
   if (editMode && sess.subBlocks.length < 2) {
     html += `<button class="add-subblock-btn" onclick="addSubBlockToSess('${sid}')">+ Add Block</button>`;
   }
+
+  const currentNotes = ((logs[sid] || []).find(e => e.date === date) || {}).notes || '';
+  html += `<div style="padding:4px 0 16px;">
+    <textarea placeholder="Session notes…"
+      style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12px;resize:none;height:58px;font-family:inherit;"
+      onblur="saveSessionNotes('${sid}','${date}',this.value)"
+    >${escHtml(currentNotes)}</textarea>
+  </div>`;
 
   scroll.innerHTML = html;
   restoreExpandedState(sid);
@@ -1925,8 +2055,8 @@ function changeDate(sid, date) {
 function toggleEditMode(forceOff) {
   if (forceOff) { editMode = false; }
   else { editMode = !editMode; }
-  const btn = document.getElementById('edit-btn');
-  btn.classList.toggle('active', editMode);
+  const btn = document.getElementById('settings-edit-btn');
+  if (btn) btn.classList.toggle('active', editMode);
   if (currentTab !== 'summary') {
     const sess = getSessConfig(currentTab);
     if (sess) buildSessionView(sess);
@@ -2030,10 +2160,6 @@ function buildSummary() {
 
   let html = `<div class="summary-wrap">
     ${progHtml}
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      <button class="modal-btn" style="flex:1;padding:8px;" onclick="exportData()">⬇ Export</button>
-      <button class="modal-btn" style="flex:1;padding:8px;" onclick="triggerImport()">⬆ Import</button>
-    </div>
     <div class="week-nav">
       <button class="week-nav-btn" onclick="selectSummaryWeek(${summaryWeekIdx+1})">◀</button>
       <span class="week-nav-lbl">${wkLabel}</span>
@@ -2085,8 +2211,8 @@ function buildSummary() {
 
   if (histExName) {
     html += `<div class="range-tabs" style="padding:0 0 6px;">
-      <button class="range-tab${histRange==='2M'?' active':''}" onclick="histRange='2M';renderHistoryCharts()">2M</button>
-      <button class="range-tab${histRange==='6M'?' active':''}" onclick="histRange='6M';renderHistoryCharts()">6M</button>
+      <button class="range-tab${histRange==='5'?' active':''}" onclick="histRange='5';renderHistoryCharts()">5 Sess</button>
+      <button class="range-tab${histRange==='10'?' active':''}" onclick="histRange='10';renderHistoryCharts()">10 Sess</button>
       <button class="range-tab${histRange==='YTD'?' active':''}" onclick="histRange='YTD';renderHistoryCharts()">YTD</button>
     </div>
     <div id="hist-charts"></div>`;
@@ -2094,6 +2220,25 @@ function buildSummary() {
     html += `<div class="hist-empty" style="padding:14px 0 4px;">Select an exercise to see history.</div>`;
   }
   html += `</div>`;
+
+  // ── Body Weight Log ──────────────────────────────────────────────────────
+  const bwLog = loadBWLog();
+  const bwRows = [...bwLog].reverse().slice(0, 20).map(e =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;color:var(--text2);">${fmtDate(e.date)}</span>
+      <span style="font-size:14px;font-weight:600;">${e.weight} ${unitPref}</span>
+      <button onclick="deleteBWEntry('${e.date}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>`
+  ).join('');
+  html += `<div class="summary-wrap" style="padding-top:0;">
+    <div class="hist-section-hdr">Body Weight</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+      <input type="date" id="bw-date" value="${todayStr()}" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-size:13px;">
+      <input type="number" id="bw-weight" placeholder="Weight (${unitPref})" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-size:13px;">
+      <button class="ep-btn" onclick="addBWEntry()">Add</button>
+    </div>
+    ${bwRows || '<div class="hist-empty" style="padding:8px 0;">No entries yet.</div>'}
+  </div>`;
 
   document.getElementById('scroll').innerHTML = html;
   initSwipeToDelete();
@@ -2146,7 +2291,7 @@ function initSwipeToDelete() {
 
 // ─── HISTORY ─────────────────────────────────────────────────────────────────
 
-let histRange = '2M';
+let histRange = '5';
 let histExName = '';
 
 function buildHistory() {
@@ -2170,8 +2315,8 @@ function buildHistory() {
 
   if (histExName) {
     html += `<div class="range-tabs">
-      <button class="range-tab${histRange==='2M'?' active':''}" onclick="histRange='2M';renderHistoryCharts()">2M</button>
-      <button class="range-tab${histRange==='6M'?' active':''}" onclick="histRange='6M';renderHistoryCharts()">6M</button>
+      <button class="range-tab${histRange==='5'?' active':''}" onclick="histRange='5';renderHistoryCharts()">5 Sess</button>
+      <button class="range-tab${histRange==='10'?' active':''}" onclick="histRange='10';renderHistoryCharts()">10 Sess</button>
       <button class="range-tab${histRange==='YTD'?' active':''}" onclick="histRange='YTD';renderHistoryCharts()">YTD</button>
     </div>`;
     html += `<div id="hist-charts"></div>`;
@@ -2185,8 +2330,9 @@ function buildHistory() {
 
 function renderHistoryCharts() {
   // Update range tab styles
+  const labelMap = {'5':'5 Sess','10':'10 Sess','YTD':'YTD'};
   document.querySelectorAll('.range-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.trim() === histRange);
+    btn.classList.toggle('active', btn.textContent.trim() === (labelMap[histRange]||histRange));
   });
   const container = document.getElementById('hist-charts');
   if (!container) return;
@@ -2215,7 +2361,7 @@ function renderHistoryCharts() {
     }
     if (hasWeight) {
       html += `<div class="chart-section">
-        <div class="chart-title">Avg Weight per Set (lb)</div>
+        <div class="chart-title">Avg Weight per Set (${unitPref})</div>
         <div class="chart-wrap">${buildSVGChart(filtered.map(p=>({date:p.date,val:p.weight})).filter(p=>p.val>0), 'weight', exColor)}</div>
       </div>`;
     }
@@ -2268,19 +2414,10 @@ function getExerciseData(exName) {
 }
 
 function filterByRange(points, range) {
-  const today = todayStr();
-  let cutoff;
-  if (range === '2M') {
-    const d = new Date(today + 'T00:00:00');
-    d.setDate(d.getDate() - 60);
-    cutoff = d.toISOString().slice(0,10);
-  } else if (range === '6M') {
-    const d = new Date(today + 'T00:00:00');
-    d.setMonth(d.getMonth() - 6);
-    cutoff = d.toISOString().slice(0,10);
-  } else { // YTD
-    cutoff = today.slice(0,4) + '-01-01';
-  }
+  if (range === '5') return points.slice(-5);
+  if (range === '10') return points.slice(-10);
+  // YTD
+  const cutoff = todayStr().slice(0,4) + '-01-01';
   return points.filter(p => p.date >= cutoff);
 }
 
@@ -2480,7 +2617,55 @@ function openTimer() {
 function openUnitCalc() {
   document.getElementById('calc-lb').value = '';
   document.getElementById('calc-kg').value = '';
+  document.getElementById('plate-goal').value = '';
+  document.getElementById('plate-result').innerHTML = '';
+  document.getElementById('bar-custom-row').style.display = 'none';
+  renderBarPresets();
   openModal('modal-calc');
+}
+
+function renderBarPresets() {
+  const presets = BAR_PRESETS[unitPref];
+  const row = document.getElementById('bar-preset-row');
+  if (!row) return;
+  row.innerHTML = presets.map((p, i) =>
+    `<button class="bar-preset${_selectedBarPreset===i?' sel':''}" onclick="selectBarPreset(${i})">${p.val}<br><span style="font-size:9px;opacity:.65">${p.label}</span></button>`
+  ).join('') + `<button class="bar-preset${_selectedBarPreset===3?' sel':''}" onclick="selectBarPreset(3)">Set<br><span style="font-size:9px;opacity:.65">custom</span></button>`;
+  const u = unitPref;
+  const gl = document.getElementById('plate-goal-unit'); if (gl) gl.textContent = u;
+  const bl = document.getElementById('bar-custom-unit'); if (bl) bl.textContent = u;
+}
+
+function selectBarPreset(idx) {
+  _selectedBarPreset = idx;
+  const cr = document.getElementById('bar-custom-row');
+  cr.style.display = idx === 3 ? 'block' : 'none';
+  if (idx === 3) document.getElementById('plate-bar-custom').focus();
+  renderBarPresets();
+  calcPlates();
+}
+
+function openSettings() {
+  document.querySelectorAll('.unit-tog button').forEach(btn =>
+    btn.classList.toggle('sel', btn.dataset.unit === unitPref)
+  );
+  const eb = document.getElementById('settings-edit-btn');
+  if (eb) eb.classList.toggle('active', editMode);
+  openModal('modal-settings');
+}
+
+function setUnit(u) {
+  unitPref = u;
+  localStorage.setItem('wt3_unit', u);
+  _selectedBarPreset = 0;
+  document.querySelectorAll('.unit-tog button').forEach(btn =>
+    btn.classList.toggle('sel', btn.dataset.unit === u)
+  );
+  if (document.getElementById('modal-calc').classList.contains('open')) {
+    renderBarPresets();
+    document.getElementById('plate-goal').value = '';
+    document.getElementById('plate-result').innerHTML = '';
+  }
 }
 
 function calcFromLb() {
@@ -2491,6 +2676,34 @@ function calcFromLb() {
 function calcFromKg() {
   const kg = parseFloat(document.getElementById('calc-kg').value);
   document.getElementById('calc-lb').value = isNaN(kg) ? '' : (kg * 2.20462).toFixed(2);
+}
+
+function calcPlates() {
+  const goal = parseFloat(document.getElementById('plate-goal').value);
+  const result = document.getElementById('plate-result');
+  let barWt;
+  if (_selectedBarPreset === 3) {
+    barWt = parseFloat(document.getElementById('plate-bar-custom').value);
+    if (isNaN(barWt)) { result.innerHTML = ''; return; }
+  } else {
+    barWt = BAR_PRESETS[unitPref][_selectedBarPreset].val;
+  }
+  if (isNaN(goal)) { result.innerHTML = ''; return; }
+  if (goal <= barWt) { result.innerHTML = `<span style="color:var(--text3)">Goal must exceed bar weight.</span>`; return; }
+  const perSide = (goal - barWt) / 2;
+  const plates = unitPref === 'kg' ? [20,15,10,5,2.5,1.25] : [45,35,25,10,5,2.5];
+  let remaining = perSide;
+  const used = [];
+  for (const p of plates) {
+    const count = Math.floor(Math.round(remaining / p * 100) / 100);
+    if (count > 0) { used.push({p, count}); remaining = Math.round((remaining - p * count) * 100) / 100; }
+  }
+  const u = unitPref;
+  const breakdown = used.map(({p, count}) => `<b>${p}</b>×${count}`).join('  ');
+  const exact = remaining < 0.01;
+  result.innerHTML = exact
+    ? `<span style="color:var(--text2)">Each side: </span><span style="color:var(--accent)">${breakdown}</span>`
+    : `<span style="color:var(--text2)">Each side ≈${perSide}${u} — </span><span style="color:var(--accent)">${breakdown}</span><span style="color:var(--text3)"> +${remaining}${u}</span>`;
 }
 
 // ─── REST DAY ─────────────────────────────────────────────────────────────────
