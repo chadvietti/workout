@@ -1750,10 +1750,8 @@ function switchTab(id) {
   buildTabs();
   const scroll = document.getElementById('scroll');
   if (id === 'summary') {
-    document.getElementById('edit-btn').style.display = 'none';
     buildSummary();
   } else {
-    document.getElementById('edit-btn').style.display = '';
     const sess = getSessConfig(id);
     if (sess) {
       if (!sessionStates[id]) {
