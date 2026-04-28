@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Workout v3.6</title>
+<title>Weekly Workout Tracker</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -17,7 +17,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
 /* TOP BAR */
 #topbar{display:flex;align-items:center;gap:8px;padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg);}
-#topbar-title{font-size:15px;font-weight:700;flex:1;}
+#topbar-title{font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tb-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;white-space:nowrap;}
 .tb-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 6px rgba(232,200,74,.25);}
 #timer-btn{min-width:54px;text-align:center;}
@@ -28,8 +28,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 #scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 
 /* BOTTOM TABS */
-#tabs{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);}
-.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 10px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-size:9px;font-weight:600;letter-spacing:.3px;position:relative;}
+#tabs{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px 10px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-size:9px;font-weight:600;letter-spacing:.3px;position:relative;min-width:0;}
 .tab-btn.active{color:var(--text);}
 .tab-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);}
 .tab-btn.active .tab-dot{background:currentColor;}
@@ -110,11 +110,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .goal-x{font-size:11px;color:var(--text3);flex-shrink:0;}
 .goal-type-sel{background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 5px;font-size:11px;flex-shrink:0;}
 .goal-type-sel:focus{outline:none;border-color:var(--accent);}
-.goal-val-inp{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 6px;font-size:12px;}
+.goal-val-inp{flex:1;min-width:48px;background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:5px;padding:4px 6px;font-size:12px;}
 .goal-val-inp:focus{outline:none;border-color:var(--accent);}
 
 /* HIST SUBSECTION IN SUMMARY */
 .hist-section-hdr{font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:16px 2px 8px;border-top:1px solid var(--border);margin-top:10px;}
+
+/* PROGRAM CARDS */
+.prog-card{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;}
+.prog-card:active{border-color:var(--accent);}
+.prog-card h3{font-size:14px;font-weight:700;margin-bottom:4px;}
+.prog-card p{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.4;}
+.prog-tags{display:flex;flex-wrap:wrap;gap:4px;}
+.prog-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--surface3);color:var(--text2);letter-spacing:.3px;text-transform:uppercase;}
+.prog-current-card{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-bottom:12px;}
+.prog-current-card h3{font-size:13px;font-weight:700;margin-bottom:3px;}
+.prog-current-card p{font-size:11px;color:var(--text2);line-height:1.4;}
+
+/* ONBOARDING OVERLAY */
+.onboard-bg{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow-y:auto;}
+.onboard-inner{max-width:420px;margin:0 auto;padding:32px 20px 40px;width:100%;}
+.onboard-title{font-size:22px;font-weight:800;margin-bottom:6px;}
+.onboard-sub{font-size:13px;color:var(--text2);margin-bottom:28px;line-height:1.5;}
+.onboard-sect{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:10px;}
+.onboard-scratch{display:block;width:100%;padding:14px;border-radius:10px;background:transparent;border:1px dashed var(--border2);color:var(--text2);font-size:13px;cursor:pointer;margin-top:16px;text-align:center;}
+.onboard-scratch:active{border-color:var(--accent);color:var(--accent);}
 
 /* BLOCK LIBRARY MODAL */
 .modal-card.lib{width:320px;max-height:75vh;overflow-y:auto;padding:20px;}
@@ -207,10 +227,9 @@ textarea.rest-input{height:70px;resize:none;}
 <body>
 <div id="app">
   <div id="topbar">
-    <span id="topbar-title">Workout</span>
+    <span id="topbar-title">Weekly Workout Tracker</span>
     <button class="tb-btn" onclick="openUnitCalc()">Calc</button>
     <button class="tb-btn" id="timer-btn" onclick="openTimer()">Timer</button>
-    <button class="tb-btn" onclick="openModal('modal-data')" title="Export / Import">⊕</button>
     <button class="tb-btn" id="edit-btn" onclick="toggleEditMode()">Edit</button>
   </div>
   <div id="scroll"></div>
@@ -288,10 +307,43 @@ textarea.rest-input{height:70px;resize:none;}
   <div class="modal-card add-ex">
     <div class="modal-title">Add Exercise</div>
     <input class="add-ex-input" type="text" id="addex-name" placeholder="Exercise name">
-    <input class="add-ex-input" type="text" id="addex-target" placeholder="Target (e.g. 3×10)">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+      <span style="font-size:11px;color:var(--text3);min-width:36px;">Goal</span>
+      <input class="goal-sets-inp" type="number" min="1" max="20" value="3" id="addex-sets">
+      <span class="goal-x">×</span>
+      <input class="goal-val-inp" type="text" id="addex-val" value="10" placeholder="amt">
+      <select class="goal-type-sel" id="addex-type" onchange="document.getElementById('addex-val').disabled=this.value==='cycle'">
+        <option value="reps">reps</option>
+        <option value="sec">sec</option>
+        <option value="min">min</option>
+        <option value="cycle">cycle</option>
+      </select>
+    </div>
     <div class="modal-footer">
       <button class="modal-btn" onclick="closeModal('modal-addex')">Cancel</button>
       <button class="modal-btn primary" onclick="confirmAddExercise()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="onboard-bg" id="onboard" style="display:none;">
+  <div class="onboard-inner">
+    <div class="onboard-title">Weekly Workout Tracker</div>
+    <div class="onboard-sub">Track your training, build habits, and stay consistent.</div>
+    <div class="onboard-sect">Choose a program to get started</div>
+    <div id="onboard-prog-list"></div>
+    <button class="onboard-scratch" onclick="startFromScratch()">Start from scratch — blank slate</button>
+  </div>
+</div>
+
+<!-- PROGRAM PICKER MODAL -->
+<div class="modal-bg" id="modal-prog">
+  <div class="modal-card lib" style="width:340px;max-height:80vh;overflow-y:auto;padding:20px;">
+    <div class="modal-title">Programs</div>
+    <div id="modal-prog-list"></div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-prog')">Cancel</button>
     </div>
   </div>
 </div>
@@ -311,17 +363,6 @@ textarea.rest-input{height:70px;resize:none;}
   </div>
 </div>
 
-<!-- DATA MODAL -->
-<div class="modal-bg" id="modal-data">
-  <div class="modal-card" style="width:260px;">
-    <div class="modal-title">Data &amp; Backup</div>
-    <button class="modal-btn" style="width:100%;margin-bottom:8px;" onclick="exportData();closeModal('modal-data')">⬇ Export backup (.json)</button>
-    <button class="modal-btn" style="width:100%;margin-bottom:8px;" onclick="triggerImport()">⬆ Import backup (.json)</button>
-    <div class="modal-footer">
-      <button class="modal-btn" onclick="closeModal('modal-data')">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <script>
 'use strict';
@@ -361,6 +402,199 @@ const REGRESSIONS = {
   'Reverse Step Up':['Step-Up','Box Step-Up'],
 };
 
+// ─── PROGRAMS ────────────────────────────────────────────────────────────────
+
+const PROGRAMS = [
+  {
+    id: 'rehab_fullbody',
+    name: 'Lower Back Rehab + Full Body',
+    description: 'Mobility-first calisthenics program with corrective work for lower back health alongside progressive full-body strength training.',
+    tags: ['Rehab','Calisthenics','Full Body','5×/week'],
+    sessionsPerWeek: 5,
+    difficulty: 'Intermediate',
+    subBlocks: {
+      'Flow': { name:'Flow', color:'#1d5fa8', exercises:[
+        {name:'Couch Stretch',target:'2×1 min'},
+        {name:'Outer Hip Circuit',target:'1×circuit'},
+        {name:'Pigeon Strength',target:'2×20'},
+        {name:'Deep Squat Hold',target:'2×2 min'},
+        {name:'Loaded Butterfly',target:'2×20'},
+        {name:'Hollow Body Hold',target:'1×30s'},
+      ]},
+      'Upper Body 1': { name:'Upper Body 1', color:'#1e6b2e', exercises:[
+        {name:'Vertical Push',target:'3×20',ss:'SSa'},
+        {name:'Vertical Pull',target:'3×10',ss:'SSb'},
+        {name:'Tricep Pullover',target:'3×15',ss:'SSa'},
+        {name:'Face Pull',target:'3×15',ss:'SSb'},
+        {name:'Powell Raise',target:'3×20'},
+        {name:'Neck Bridge',target:'3×10s'},
+        {name:'Hanging Leg Raises',target:'3×15'},
+      ]},
+      'Upper Body 2': { name:'Upper Body 2', color:'#6b2478', exercises:[
+        {name:'Horizontal Push',target:'3×20',ss:'SSa'},
+        {name:'Horizontal Pull',target:'3×15',ss:'SSb'},
+        {name:'Flies',target:'3×15',ss:'SSa'},
+        {name:'Pelican Curls',target:'3×15',ss:'SSb'},
+        {name:'Squeeze/Stretch Curl',target:'3×15',ss:'SSa'},
+        {name:'Tricep Lockout',target:'3×30',ss:'SSb'},
+        {name:'Ab Wheel',target:'3×12'},
+      ]},
+      'Lower Body': { name:'Lower Body', color:'#a04a10', exercises:[
+        {name:'Slant Squats',target:'3×15',ss:'SSa'},
+        {name:'Hamstring Curls',target:'3×15',ss:'SSb'},
+        {name:'Leg Extension',target:'3×15'},
+        {name:'SL Cable Hip Flexor',target:'2×15',ss:'SSa'},
+        {name:'SL Reverse Hyper',target:'2×15',ss:'SSb'},
+        {name:'Ankle Balance Ball',target:'2×60s'},
+      ]},
+      'Mobility': { name:'Mobility', color:'#0e6b72', exercises:[
+        {name:'Cardio Warm-Up',target:'1×10 min'},
+        {name:'Tibialis Raise',target:'2×25'},
+        {name:'Calf Raise',target:'2×25'},
+        {name:'Reverse Step Up',target:'2×25'},
+        {name:'Full-Range Split Squat',target:'2×15'},
+        {name:'External Rotation',target:'2×15'},
+        {name:'Pullover',target:'2×15'},
+        {name:'Trap 3 Raise',target:'2×10'},
+        {name:'Hip Flexor Kick Out',target:'2×5'},
+        {name:'Side Bend',target:'2×12'},
+        {name:'Back Extension',target:'2×30'},
+      ]},
+    },
+    sessions:[
+      {id:'flow_ub1', label:'Flow+UB1',  color:'#1d5fa8', subBlocks:['Flow','Upper Body 1']},
+      {id:'mob_a',    label:'Mobility A', color:'#0e6b72', subBlocks:['Mobility']},
+      {id:'flow_ub2', label:'Flow+UB2',  color:'#6b2478', subBlocks:['Flow','Upper Body 2']},
+      {id:'mob_b',    label:'Mobility B', color:'#0e6b72', subBlocks:['Mobility']},
+      {id:'flow_lb',  label:'Flow+LB',   color:'#a04a10', subBlocks:['Flow','Lower Body']},
+    ],
+  },
+  {
+    id: 'ppl',
+    name: 'Push / Pull / Legs',
+    description: 'Classic 3-day split targeting every muscle group each week. Great starting point for building size and strength.',
+    tags: ['Strength','Hypertrophy','3×/week','Beginner-friendly'],
+    sessionsPerWeek: 3,
+    difficulty: 'Beginner – Intermediate',
+    subBlocks: {
+      'Push': { name:'Push', color:'#8b2020', exercises:[
+        {name:'Push-Up',target:'4×15',ss:'SSa'},
+        {name:'Dips',target:'3×12',ss:'SSb'},
+        {name:'Pike Push-Up',target:'3×12'},
+        {name:'Lateral Raise',target:'3×15'},
+        {name:'Tricep Extension',target:'3×15'},
+      ]},
+      'Pull': { name:'Pull', color:'#1e6b2e', exercises:[
+        {name:'Pull-Up',target:'4×8',ss:'SSa'},
+        {name:'Inverted Row',target:'4×12',ss:'SSb'},
+        {name:'Face Pull',target:'3×15'},
+        {name:'Bicep Curl',target:'3×12'},
+        {name:'Rear Delt Fly',target:'3×15'},
+      ]},
+      'Legs': { name:'Legs', color:'#a04a10', exercises:[
+        {name:'Squat',target:'4×15'},
+        {name:'Romanian Deadlift',target:'3×12'},
+        {name:'Lunge',target:'3×12'},
+        {name:'Glute Bridge',target:'3×20'},
+        {name:'Calf Raise',target:'3×25'},
+      ]},
+    },
+    sessions:[
+      {id:'ppl_push', label:'Push', color:'#8b2020', subBlocks:['Push']},
+      {id:'ppl_pull', label:'Pull', color:'#1e6b2e', subBlocks:['Pull']},
+      {id:'ppl_legs', label:'Legs', color:'#a04a10', subBlocks:['Legs']},
+    ],
+  },
+  {
+    id: 'fullbody3',
+    name: 'Full Body 3×/Week',
+    description: 'Three balanced full-body sessions per week rotating A/B/C. Efficient and sustainable — ideal for busy schedules.',
+    tags: ['Full Body','3×/week','Balanced','Beginner-friendly'],
+    sessionsPerWeek: 3,
+    difficulty: 'Beginner – Intermediate',
+    subBlocks: {
+      'Full Body A': { name:'Full Body A', color:'#1d5fa8', exercises:[
+        {name:'Squat',target:'3×15'},
+        {name:'Push-Up',target:'3×15'},
+        {name:'Inverted Row',target:'3×12'},
+        {name:'Hip Hinge',target:'3×12'},
+        {name:'Plank',target:'3×30s'},
+      ]},
+      'Full Body B': { name:'Full Body B', color:'#6b2478', exercises:[
+        {name:'Lunge',target:'3×12'},
+        {name:'Dips',target:'3×10'},
+        {name:'Pull-Up',target:'3×8'},
+        {name:'Glute Bridge',target:'3×20'},
+        {name:'Dead Bug',target:'3×10'},
+      ]},
+      'Full Body C': { name:'Full Body C', color:'#0e6b72', exercises:[
+        {name:'Split Squat',target:'3×12'},
+        {name:'Pike Push-Up',target:'3×12'},
+        {name:'Chin-Up',target:'3×8'},
+        {name:'Romanian Deadlift',target:'3×12'},
+        {name:'Hollow Body Hold',target:'3×20s'},
+      ]},
+    },
+    sessions:[
+      {id:'fb3_a', label:'Full Body A', color:'#1d5fa8', subBlocks:['Full Body A']},
+      {id:'fb3_b', label:'Full Body B', color:'#6b2478', subBlocks:['Full Body B']},
+      {id:'fb3_c', label:'Full Body C', color:'#0e6b72', subBlocks:['Full Body C']},
+    ],
+  },
+  {
+    id: 'ulppl',
+    name: 'ULPPL (5-Day)',
+    description: 'Upper, Lower, Push, Pull, Legs — high-frequency 5-day split for experienced trainees seeking maximum weekly volume.',
+    tags: ['5×/week','High Frequency','Hypertrophy','Advanced'],
+    sessionsPerWeek: 5,
+    difficulty: 'Intermediate – Advanced',
+    subBlocks: {
+      'Upper (ULPPL)': { name:'Upper (ULPPL)', color:'#1d5fa8', exercises:[
+        {name:'Pull-Up',target:'4×8',ss:'SSa'},
+        {name:'Push-Up Weighted',target:'4×12',ss:'SSb'},
+        {name:'Overhead Press',target:'3×10'},
+        {name:'Barbell Row',target:'3×10'},
+        {name:'Lateral Raise',target:'3×15'},
+      ]},
+      'Lower (ULPPL)': { name:'Lower (ULPPL)', color:'#a04a10', exercises:[
+        {name:'Squat',target:'4×8'},
+        {name:'Romanian Deadlift',target:'3×10'},
+        {name:'Leg Press',target:'3×12'},
+        {name:'Leg Curl',target:'3×12'},
+        {name:'Calf Raise',target:'4×20'},
+      ]},
+      'Push (ULPPL)': { name:'Push (ULPPL)', color:'#8b2020', exercises:[
+        {name:'Incline Push-Up',target:'3×15',ss:'SSa'},
+        {name:'Dips',target:'3×12',ss:'SSb'},
+        {name:'Pike Push-Up',target:'3×12'},
+        {name:'Tricep Extension',target:'3×15'},
+        {name:'Lateral Raise',target:'3×15'},
+      ]},
+      'Pull (ULPPL)': { name:'Pull (ULPPL)', color:'#1e6b2e', exercises:[
+        {name:'Pull-Up',target:'4×8',ss:'SSa'},
+        {name:'Inverted Row',target:'4×10',ss:'SSb'},
+        {name:'Face Pull',target:'3×15'},
+        {name:'Bicep Curl',target:'3×12'},
+        {name:'Rear Delt Fly',target:'3×15'},
+      ]},
+      'Legs (ULPPL)': { name:'Legs (ULPPL)', color:'#6b2478', exercises:[
+        {name:'Bulgarian Split Squat',target:'3×10',ss:'SSa'},
+        {name:'Nordic Curl',target:'3×6',ss:'SSb'},
+        {name:'Leg Extension',target:'3×15'},
+        {name:'Hip Thrust',target:'3×12'},
+        {name:'Calf Raise',target:'4×20'},
+      ]},
+    },
+    sessions:[
+      {id:'ulppl_upper', label:'Upper', color:'#1d5fa8', subBlocks:['Upper (ULPPL)']},
+      {id:'ulppl_lower', label:'Lower', color:'#a04a10', subBlocks:['Lower (ULPPL)']},
+      {id:'ulppl_push',  label:'Push',  color:'#8b2020', subBlocks:['Push (ULPPL)']},
+      {id:'ulppl_pull',  label:'Pull',  color:'#1e6b2e', subBlocks:['Pull (ULPPL)']},
+      {id:'ulppl_legs',  label:'Legs',  color:'#6b2478', subBlocks:['Legs (ULPPL)']},
+    ],
+  },
+];
+
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 
 function defaultSubBlockLib() {
@@ -373,7 +607,7 @@ function defaultSubBlockLib() {
         {name:'Pigeon Strength',target:'2×20'},
         {name:'Deep Squat Hold',target:'2×2 min'},
         {name:'Loaded Butterfly',target:'2×20'},
-        {name:'Hollow Body Hold',target:'1×20-30s'},
+        {name:'Hollow Body Hold',target:'1×30s'},
       ]
     },
     'Upper Body 1': {
@@ -385,7 +619,7 @@ function defaultSubBlockLib() {
         {name:'Face Pull',target:'3×15',ss:'SSb'},
         {name:'Powell Raise',target:'3×20'},
         {name:'Neck Bridge',target:'3×10s'},
-        {name:'Hanging Leg Raises',target:'3×10-15'},
+        {name:'Hanging Leg Raises',target:'3×15'},
       ]
     },
     'Upper Body 2': {
@@ -397,7 +631,7 @@ function defaultSubBlockLib() {
         {name:'Pelican Curls',target:'3×15',ss:'SSb'},
         {name:'Squeeze/Stretch Curl',target:'3×15',ss:'SSa'},
         {name:'Tricep Lockout',target:'3×30',ss:'SSb'},
-        {name:'Ab Wheel',target:'3×8-12'},
+        {name:'Ab Wheel',target:'3×12'},
       ]
     },
     'Lower Body': {
@@ -417,14 +651,14 @@ function defaultSubBlockLib() {
         {name:'Cardio Warm-Up',target:'1×10 min'},
         {name:'Tibialis Raise',target:'2×25'},
         {name:'Calf Raise',target:'2×25'},
-        {name:'Reverse Step Up',target:'2×10-25'},
-        {name:'Full-Range Split Squat',target:'2×10-15'},
-        {name:'External Rotation',target:'2×10-15'},
+        {name:'Reverse Step Up',target:'2×25'},
+        {name:'Full-Range Split Squat',target:'2×15'},
+        {name:'External Rotation',target:'2×15'},
         {name:'Pullover',target:'2×15'},
         {name:'Trap 3 Raise',target:'2×10'},
         {name:'Hip Flexor Kick Out',target:'2×5'},
         {name:'Side Bend',target:'2×12'},
-        {name:'Back Extension',target:'2×20-30'},
+        {name:'Back Extension',target:'2×30'},
       ]
     }
   };
@@ -462,6 +696,12 @@ function loadCustomReg() {
   try { return JSON.parse(localStorage.getItem('wt3_customReg')) || {}; } catch(e){ return {}; }
 }
 function saveCustomReg(d) { localStorage.setItem('wt3_customReg', JSON.stringify(d)); }
+function loadCurrentProgram() {
+  try { return JSON.parse(localStorage.getItem('wt3_program')) || null; } catch(e){ return null; }
+}
+function saveCurrentProgram(d) { localStorage.setItem('wt3_program', JSON.stringify(d)); }
+function isInitialized() { return !!localStorage.getItem('wt3_initialized'); }
+function markInitialized() { localStorage.setItem('wt3_initialized', '1'); }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 
@@ -470,6 +710,7 @@ let sessionsConfig = loadSC() || defaultSessionsConfig();
 let logs = loadLogs();
 let regPrefs = loadRegPrefs();
 let customReg = loadCustomReg();
+let currentProgram = loadCurrentProgram();
 
 let currentTab = sessionsConfig[0].id;
 let editMode = false;
@@ -1001,20 +1242,26 @@ function deleteExercise(sid, sbName, exName) {
 function openAddExModal(sid, sbName) {
   _addExCtx = {sid, sbName};
   document.getElementById('addex-name').value = '';
-  document.getElementById('addex-target').value = '';
+  document.getElementById('addex-sets').value = '3';
+  document.getElementById('addex-type').value = 'reps';
+  document.getElementById('addex-val').value = '10';
+  document.getElementById('addex-val').disabled = false;
   openModal('modal-addex');
 }
 
 function confirmAddExercise() {
   if (!_addExCtx) return;
   const name = document.getElementById('addex-name').value.trim();
-  const target = document.getElementById('addex-target').value.trim();
   if (!name) { alert('Exercise name required.'); return; }
+  const sets = parseInt(document.getElementById('addex-sets').value) || 3;
+  const type = document.getElementById('addex-type').value;
+  const val  = document.getElementById('addex-val').value.trim();
+  const target = buildTargetStr({sets, type, val});
   const {sid, sbName} = _addExCtx;
   const sb = subBlockLib[sbName];
   if (!sb) return;
   if (sb.exercises.find(e => e.name === name)) { alert('Exercise already exists.'); return; }
-  sb.exercises.push({name, target: target || '3×10'});
+  sb.exercises.push({name, target});
   saveSB(subBlockLib);
   closeModal('modal-addex');
   buildSessionView(getSessConfig(sid));
@@ -1022,6 +1269,25 @@ function confirmAddExercise() {
 
 function addSubBlockToSess(sid) {
   openBlockLibrary(sid, getSessConfig(sid).subBlocks.length);
+}
+
+// ─── RANGE MIGRATION ─────────────────────────────────────────────────────────
+
+function migrateRangeTargets() {
+  let changed = false;
+  Object.values(subBlockLib).forEach(sb => {
+    sb.exercises.forEach(ex => {
+      if (!ex.target) return;
+      const m = ex.target.match(/^(\d+)×(.+)$/);
+      if (!m) return;
+      const rangeMatch = m[2].match(/^(\d+)-(\d+)(s?)$/);
+      if (rangeMatch) {
+        ex.target = `${m[1]}×${rangeMatch[2]}${rangeMatch[3]}`;
+        changed = true;
+      }
+    });
+  });
+  if (changed) saveSB(subBlockLib);
 }
 
 // ─── GOAL PARSING ────────────────────────────────────────────────────────────
@@ -1041,6 +1307,14 @@ function parseTarget(target) {
   if (/^circuit$/i.test(rest)) {
     return {sets, type:'cycle', val:''};
   }
+  // Resolve ranges like "10-15" or "20-30s" to their maximum
+  const rangeMatch = rest.match(/^(\d+)-(\d+)(s?)$/);
+  if (rangeMatch) {
+    const maxVal = rangeMatch[2];
+    const suffix = rangeMatch[3];
+    if (suffix === 's') return {sets, type:'sec', val: maxVal};
+    return {sets, type:'reps', val: maxVal};
+  }
   return {sets, type:'reps', val:rest};
 }
 
@@ -1052,27 +1326,56 @@ function buildTargetStr(parsed) {
   return `${n}×${parsed.val||10}`;
 }
 
+function onGoalChange(exId, sbName, exName, sid) {
+  const setsEl = document.getElementById(exId + '_gsets');
+  const typeEl = document.getElementById(exId + '_gtype');
+  const valEl  = document.getElementById(exId + '_gval');
+  if (!setsEl || !typeEl || !valEl) return;
+  valEl.disabled = typeEl.value === 'cycle';
+  const newTarget = buildTargetStr({
+    sets: parseInt(setsEl.value) || 1,
+    type: typeEl.value,
+    val:  valEl.value
+  });
+  updateExGoal(sbName, exName, newTarget, sid);
+}
+
 function updateExGoal(sbName, exName, newTarget, sid) {
   saveExTarget(sbName, exName, newTarget);
-  // Sync set count in all active session states that use this sub-block
   const setsMatch = (newTarget||'').match(/^(\d+)×/);
   const numSets = setsMatch ? parseInt(setsMatch[1]) : 3;
+
   sessionsConfig.forEach(sess => {
     if (!sess.subBlocks.includes(sbName)) return;
     const sState = sessionStates[sess.id];
     if (!sState || !sState.data[exName]) return;
     const exData = sState.data[exName];
     const cur = exData.sets.length;
+    if (cur === numSets) return;
     if (cur < numSets) {
-      for (let i = cur; i < numSets; i++) {
-        exData.sets.push({reps:'', weight:'', time:'', done:false});
-      }
-    } else if (cur > numSets) {
+      for (let i = cur; i < numSets; i++) exData.sets.push({reps:'',weight:'',time:'',done:false});
+    } else {
       exData.sets = exData.sets.slice(0, numSets);
     }
     persistSession(sess.id);
+    // Patch set rows in DOM if this session is currently visible
+    if (sess.id === currentTab) {
+      const eId = makeExId(sess.id, exName);
+      const tbody = document.querySelector('#' + eId + '_setgrid tbody');
+      if (tbody) {
+        const info = findExInSess(sess.id, exName);
+        const bc = info ? info.sb.color : '#888';
+        tbody.innerHTML = exData.sets.map((s, i) =>
+          `<tr id="${eId}_set_${i}">${setRowInnerHTML(eId, sess.id, exName, i, s, bc)}</tr>`
+        ).join('');
+      }
+    }
   });
-  buildSessionView(getSessConfig(currentTab));
+
+  // Update target label in header without full rebuild
+  const eId = makeExId(sid, exName);
+  const tEl = document.querySelector('#' + eId + ' .ex-target');
+  if (tEl) tEl.textContent = newTarget;
 }
 
 // ─── SESSION MANAGEMENT ───────────────────────────────────────────────────────
@@ -1113,6 +1416,69 @@ function deleteSession(sid) {
   loadSessionFromLog(currentTab, todayStr());
   buildSessionView(getSessConfig(currentTab));
   document.getElementById('edit-btn').style.display = '';
+}
+
+// ─── PROGRAM MANAGEMENT ──────────────────────────────────────────────────────
+
+function loadProgramTemplate(prog) {
+  // Merge sub-blocks
+  Object.assign(subBlockLib, JSON.parse(JSON.stringify(prog.subBlocks)));
+  saveSB(subBlockLib);
+  // Replace sessions
+  sessionsConfig = JSON.parse(JSON.stringify(prog.sessions));
+  saveSC(sessionsConfig);
+  // Record current program
+  currentProgram = {id: prog.id, name: prog.name, description: prog.description, tags: prog.tags, sessionsPerWeek: prog.sessionsPerWeek, difficulty: prog.difficulty};
+  saveCurrentProgram(currentProgram);
+  sessionStates = {};
+  migrateRangeTargets();
+}
+
+function startFromScratch() {
+  subBlockLib = {};
+  saveSB(subBlockLib);
+  sessionsConfig = [{id:'session_1', label:'Session 1', color:PALETTE[0], subBlocks:[]}];
+  saveSC(sessionsConfig);
+  currentProgram = null;
+  saveCurrentProgram(null);
+  sessionStates = {};
+  markInitialized();
+  document.getElementById('onboard').style.display = 'none';
+  currentTab = sessionsConfig[0].id;
+  buildTabs();
+  switchTab(currentTab);
+}
+
+function selectProgram(progId, fromModal) {
+  const prog = PROGRAMS.find(p => p.id === progId);
+  if (!prog) return;
+  if (isInitialized() && !confirm(`Load "${prog.name}"? This will replace your current sessions (your log history is kept).`)) return;
+  loadProgramTemplate(prog);
+  markInitialized();
+  if (fromModal) closeModal('modal-prog');
+  document.getElementById('onboard').style.display = 'none';
+  currentTab = sessionsConfig[0].id;
+  loadSessionFromLog(currentTab, todayStr());
+  buildTabs();
+  switchTab(currentTab);
+}
+
+function buildProgCards(containerId, fromModal) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = PROGRAMS.map(prog => {
+    const tags = prog.tags.map(t => `<span class="prog-tag">${escHtml(t)}</span>`).join('');
+    return `<div class="prog-card" onclick="selectProgram('${prog.id}',${fromModal})">
+      <h3>${escHtml(prog.name)}</h3>
+      <p>${escHtml(prog.description)}</p>
+      <div class="prog-tags">${tags}</div>
+    </div>`;
+  }).join('');
+}
+
+function openProgramPicker() {
+  buildProgCards('modal-prog-list', true);
+  openModal('modal-prog');
 }
 
 // ─── BUILD TABS ───────────────────────────────────────────────────────────────
@@ -1295,7 +1661,7 @@ function buildExHTML(sid, ex, bc, sbName) {
     const gSets = parsed.sets;
     const gType = parsed.type;
     const gVal  = parsed.val;
-    const gcbBase = `updateExGoal('${escAttr(sbName)}','${escAttr(ex.name)}',buildTargetStr({sets:parseInt(document.getElementById('${exId}_gsets').value)||1,type:document.getElementById('${exId}_gtype').value,val:document.getElementById('${exId}_gval').value}),'${sid}')`;
+    const gcb = `onGoalChange('${exId}','${escAttr(sbName)}','${escAttr(ex.name)}','${sid}')`;
     headerContent = `
       <div class="ex-header" onclick="toggleEx('${exId}')">
         <div style="flex:1;min-width:0;">
@@ -1311,23 +1677,26 @@ function buildExHTML(sid, ex, bc, sbName) {
           onblur="saveExName('${escAttr(sbName)}','${escAttr(ex.name)}',this.value)">
         <div class="goal-editor">
           <input class="goal-sets-inp" id="${exId}_gsets" type="number" min="1" max="20" value="${gSets}"
-            onchange="${gcbBase}">
+            onchange="${gcb}">
           <span class="goal-x">×</span>
-          <select class="goal-type-sel" id="${exId}_gtype" onchange="${gcbBase}">
+          <input class="goal-val-inp" id="${exId}_gval" type="text" value="${escAttr(gVal)}" placeholder="amt"
+            ${gType==='cycle'?'disabled':''}
+            onchange="${gcb}" onblur="${gcb}">
+          <select class="goal-type-sel" id="${exId}_gtype" onchange="${gcb}">
             <option value="reps"${gType==='reps'?' selected':''}>reps</option>
             <option value="sec"${gType==='sec'?' selected':''}>sec</option>
             <option value="min"${gType==='min'?' selected':''}>min</option>
             <option value="cycle"${gType==='cycle'?' selected':''}>cycle</option>
           </select>
-          <input class="goal-val-inp" id="${exId}_gval" type="text" value="${escAttr(gVal)}" placeholder="amt"
-            ${gType==='cycle'?'disabled':''}
-            onblur="${gcbBase}">
         </div>
         <button class="ss-cycle-btn" id="${exId}_sscycle" style="${ssStyle}"
           onclick="cycleSSTag('${escAttr(sbName)}','${escAttr(ex.name)}','${exId}')">${ssLabel}</button>
+      </div>
+      <div class="ex-edit-bar" style="padding-top:0;gap:6px;">
         <button class="ex-ord-btn" onclick="moveExercise('${escAttr(sbName)}','${escAttr(ex.name)}','up')">↑</button>
         <button class="ex-ord-btn" onclick="moveExercise('${escAttr(sbName)}','${escAttr(ex.name)}','down')">↓</button>
         <button class="ex-del-btn" onclick="deleteExercise('${sid}','${escAttr(sbName)}','${escAttr(ex.name)}')">✕</button>
+        <span style="flex:1;"></span>
       </div>`;
   } else {
     headerContent = `
@@ -1520,7 +1889,29 @@ function buildSummary() {
     summaryWeekIdx === 1 ? 'Last Week' :
     fmtDate(wkStart) + ' – ' + fmtDate(addDays(wkStart, 6));
 
+  // Program card
+  const progHtml = currentProgram
+    ? `<div class="prog-current-card">
+        <div style="display:flex;align-items:flex-start;gap:8px;">
+          <div style="flex:1;">
+            <h3>${escHtml(currentProgram.name)}</h3>
+            <p style="margin-top:3px;">${escHtml(currentProgram.description||'')}</p>
+            <div class="prog-tags" style="margin-top:6px;">${(currentProgram.tags||[]).map(t=>`<span class="prog-tag">${escHtml(t)}</span>`).join('')}</div>
+          </div>
+          <button class="ep-btn" style="flex-shrink:0;margin-top:2px;" onclick="openProgramPicker()">Change</button>
+        </div>
+      </div>`
+    : `<div class="prog-current-card" style="text-align:center;">
+        <p style="margin-bottom:8px;color:var(--text2);">No program loaded</p>
+        <button class="ep-btn" style="width:100%;" onclick="openProgramPicker()">Browse Programs</button>
+      </div>`;
+
   let html = `<div class="summary-wrap">
+    ${progHtml}
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="modal-btn" style="flex:1;padding:8px;" onclick="exportData()">⬇ Export</button>
+      <button class="modal-btn" style="flex:1;padding:8px;" onclick="triggerImport()">⬆ Import</button>
+    </div>
     <div class="week-nav">
       <button class="week-nav-btn" onclick="selectSummaryWeek(${summaryWeekIdx+1})">◀</button>
       <span class="week-nav-lbl">${wkLabel}</span>
@@ -1983,7 +2374,7 @@ document.querySelectorAll('.modal-bg').forEach(bg => {
 
 function exportData() {
   const payload = {
-    version: '3.6',
+    version: '3.7',
     exported: new Date().toISOString(),
     subBlockLib,
     sessionsConfig,
@@ -2055,25 +2446,7 @@ function escAttr(str) {
   return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 }
 
-// ─── TOPBAR ACTIONS (export/import accessible via title long-press) ───────────
-
-// Add export/import buttons to topbar via a hidden menu triggered by title tap
-let titleTapCount = 0;
-document.getElementById('topbar-title').addEventListener('click', () => {
-  titleTapCount++;
-  if (titleTapCount >= 3) {
-    titleTapCount = 0;
-    showDataMenu();
-  }
-  setTimeout(() => { titleTapCount = 0; }, 1000);
-});
-
-function showDataMenu() {
-  openModal('modal-data');
-}
-
 function triggerImport() {
-  closeModal('modal-data');
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = '.json';
@@ -2084,6 +2457,12 @@ function triggerImport() {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 function init() {
+  migrateRangeTargets();
+  if (!isInitialized()) {
+    buildProgCards('onboard-prog-list', false);
+    document.getElementById('onboard').style.display = 'flex';
+    return;
+  }
   buildTabs();
   switchTab(currentTab);
 }
