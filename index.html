@@ -854,6 +854,12 @@ function updateSet(sid, exName, i, field, val) {
   persistSession(sid);
 }
 
+function autoCheck(sid, exName, i, exId) {
+  ensureEx(sid, exName, getExTarget(sid, exName));
+  const s = sessionStates[sid].data[exName].sets[i];
+  if (!s.done) toggleDone(sid, exName, i, exId);
+}
+
 function toggleDone(sid, exName, i, exId) {
   const target = getExTarget(sid, exName);
   ensureEx(sid, exName, target);
@@ -1746,7 +1752,7 @@ function buildExHTML(sid, ex, bc, sbName) {
   const bodyHTML = `${varRow}
     <table class="set-grid" id="${exId}_setgrid">
       <thead><tr>
-        <th>#</th><th>Reps</th><th>Wt(lb)</th><th>Time(s)</th><th>✓</th>
+        <th>#</th><th>Reps</th><th>Wt</th><th>Time(s)</th><th>✓</th>
       </tr></thead>
       <tbody>${setRows}</tbody>
     </table>
@@ -1761,13 +1767,14 @@ function buildExHTML(sid, ex, bc, sbName) {
 
 function setRowInnerHTML(exId, sid, exName, i, s, bc) {
   const doneStyle = s.done ? ` style="background:${dimColor(bc)};border-color:${bc};color:${bc}"` : '';
+  const ac = `autoCheck('${sid}','${escAttr(exName)}',${i},'${exId}')`;
   return `<td class="set-num">${i+1}</td>
     <td><input class="set-inp${s.done?' done-inp':''}" type="number" id="${exId}_r${i}" value="${s.reps||''}" placeholder="-"
-      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'reps',this.value)"></td>
+      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'reps',this.value);${ac}"></td>
     <td><input class="set-inp${s.done?' done-inp':''}" type="number" id="${exId}_w${i}" value="${s.weight||''}" placeholder="-"
-      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'weight',this.value)"></td>
+      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'weight',this.value);${ac}"></td>
     <td><input class="set-inp${s.done?' done-inp':''}" type="number" id="${exId}_t${i}" value="${s.time||''}" placeholder="-"
-      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'time',this.value)"></td>
+      onchange="updateSet('${sid}','${escAttr(exName)}',${i},'time',this.value);${ac}"></td>
     <td><button class="done-btn${s.done?' done':''}"${doneStyle} onclick="toggleDone('${sid}','${escAttr(exName)}',${i},'${exId}')">${s.done?'✓':''}</button></td>`;
 }
 
