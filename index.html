@@ -978,13 +978,16 @@ function copyLastWeights(sid) {
       if (!lastSets.length) return;
       if (!sessionStates[sid].data[ex.name]) sessionStates[sid].data[ex.name] = {sets: []};
       const curSets = sessionStates[sid].data[ex.name].sets;
+      const wMult = last.unit && last.unit !== unitPref
+        ? (unitPref === 'lb' ? 2.20462 : 0.453592) : 1;
       lastSets.forEach((ls, i) => {
         if (!ls.weight) return;
         if (!curSets[i]) curSets[i] = {};
-        if (curSets[i].weight) return; // don't overwrite already-entered weight
-        curSets[i].weight = ls.weight;
+        if (curSets[i].weight) return;
+        const w = Math.round((parseFloat(ls.weight) * wMult) * 4) / 4;
+        curSets[i].weight = w;
         const inp = document.getElementById(makeExId(sid, ex.name) + '_w' + i);
-        if (inp) inp.value = ls.weight;
+        if (inp) inp.value = w;
         copied = true;
       });
     });
@@ -999,7 +1002,7 @@ function persistSession(sid) {
   const data = state.data;
   if (!logs[sid]) logs[sid] = [];
   const idx = logs[sid].findIndex(e => e.date === date);
-  const entry = {date, data: JSON.parse(JSON.stringify(data))};
+  const entry = {date, unit: unitPref, data: JSON.parse(JSON.stringify(data))};
   if (idx >= 0) logs[sid][idx] = entry;
   else logs[sid].push(entry);
   saveLogs(logs);
@@ -2399,10 +2402,12 @@ function getExerciseData(exName) {
       });
       if (!seen[entry.date]) {
         seen[entry.date] = true;
+        const wMult = entry.unit && entry.unit !== unitPref
+          ? (unitPref === 'lb' ? 2.20462 : 0.453592) : 1;
         points.push({
           date: entry.date,
           reps: countReps ? totalReps/countReps : 0,
-          weight: countWeight ? totalWeight/countWeight : 0,
+          weight: countWeight ? (totalWeight/countWeight) * wMult : 0,
           time: countTime ? totalTime/countTime : 0
         });
       }
